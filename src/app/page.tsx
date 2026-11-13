@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CalendarDays, ChartColumn, Radio } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
+import { LiveRefresher } from "@/components/live/live-refresher";
 import { MatchCard } from "@/features/league/components/match-list";
 import { getCategories, getCurrentSeason, getHomeMatches, type Category, type Match } from "@/features/league/data";
 import { formatDateOnly } from "@/lib/format";
@@ -57,11 +58,13 @@ async function HomeMatches() {
 
   return (
     <>
+      {/* Tiempo real en Inicio: espera unos segundos para agrupar cambios de muchos partidos */}
+      <LiveRefresher delayMs={5000} />
       {live.length ? (
         <Section title="En vivo ahora">
           <p className="-mt-2 mb-3 flex items-center gap-1.5 text-xs text-muted">
             <Radio className="size-3.5 text-brand-red" aria-hidden />
-            Recarga para ver el marcador actualizado.
+            El marcador se actualiza solo.
           </p>
           <CardGrid matches={live} catById={catById} />
         </Section>

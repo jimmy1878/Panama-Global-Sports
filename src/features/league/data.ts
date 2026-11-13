@@ -39,6 +39,7 @@ export type Match = {
   id: string;
   categoryId: string;
   startsAt: string;
+  startedAt: string | null; // hora real de inicio (para el minuto en vivo)
   matchday: number | null;
   status: MatchStatus;
   homeScore: number | null;
@@ -202,7 +203,7 @@ async function getPlayerNames(ids: string[]): Promise<Map<string, string>> {
 // ---------------------------------------------------------------------------
 // Partidos
 // ---------------------------------------------------------------------------
-const MATCH_SELECT = `id, category_id, starts_at, matchday, status, home_score, away_score,
+const MATCH_SELECT = `id, category_id, starts_at, started_at, matchday, status, home_score, away_score,
   venue:venues(name),
   home:teams!matches_home_team_id_season_id_category_id_fkey(${TEAM_COLUMNS}),
   away:teams!matches_away_team_id_season_id_category_id_fkey(${TEAM_COLUMNS})`;
@@ -211,6 +212,7 @@ type MatchRow = {
   id: string;
   category_id: string;
   starts_at: string;
+  started_at: string | null;
   matchday: number | null;
   status: MatchStatus;
   home_score: number | null;
@@ -225,6 +227,7 @@ function toMatch(m: MatchRow): Match {
     id: m.id,
     categoryId: m.category_id,
     startsAt: m.starts_at,
+    startedAt: m.started_at,
     matchday: m.matchday,
     status: m.status,
     homeScore: m.home_score,
@@ -293,7 +296,7 @@ export async function getMatchDetail(matchId: string) {
   const category = categories.find((c) => c.id === match.categoryId) ?? null;
   const individual = category?.recognitionMode === "individual_ranking";
 
-  // Solo eventos positivos en público: las tarjetas no se muestran (tono siempre positivo).
+  // Eventos visibles en público (las atajadas no, para no saturar la línea de tiempo).
   const [{ data: events, error: eventsError }, { data: mvps, error: mvpError }, { data: chronicle }] =
     await Promise.all([
       supabase
@@ -301,7 +304,7 @@ export async function getMatchDetail(matchId: string) {
         .select("id, team_id, player_id, minute, event_type:event_types!inner(code)")
         .eq("match_id", matchId)
         .is("voided_at", null)
-        .in("event_type.code", ["goal", "own_goal", "assist", "fair_play"])
+        .in("event_type.code", ["goal", "own_goal", "assist", "fair_play", "yellow_card", "red_card"])
         .order("minute", { nullsFirst: false })
         .order("created_at"),
       supabase.from("match_mvps").select("team_id, player_id").eq("match_id", matchId),

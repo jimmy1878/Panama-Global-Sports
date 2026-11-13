@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
+import { LiveMinute } from "@/components/live/live-minute";
 import { TeamCrest } from "@/components/ui/team-crest";
 import { formatDay, formatTime } from "@/lib/format";
 import type { Category, Match } from "../data";
@@ -11,6 +12,7 @@ export function StatusBadge({ match }: { match: Match }) {
         <span className="inline-flex items-center gap-1 rounded-full bg-brand-red px-2 py-0.5 text-[11px] font-bold text-white">
           <span className="size-1.5 animate-pulse rounded-full bg-white" aria-hidden />
           EN VIVO
+          <LiveMinute startedAt={match.startedAt} prefix="· " />
         </span>
       );
     case "finished":

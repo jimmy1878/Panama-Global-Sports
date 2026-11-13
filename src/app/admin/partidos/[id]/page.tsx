@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, ExternalLink, Radio } from "lucide-react";
 import { PageTitle, Section, Skeleton } from "@/components/ui/section";
 import { getMatchAdmin, getUsers, getVenues } from "@/features/admin/data";
 import { AdminForm, Field, Select, TextInput } from "@/features/admin/form";
@@ -68,10 +68,19 @@ async function MatchAdmin({ id }: { id: string }) {
           title={`${teamName(match.home_team_id)} vs ${teamName(match.away_team_id)}`}
           subtitle={category ? `${category.leagueName} · ${category.code}` : undefined}
         />
-        <Link href={`/partidos/${match.id}`} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-blue md:mb-6">
-          Ver página pública
-          <ExternalLink className="size-4" aria-hidden />
-        </Link>
+        <div className="mb-4 flex flex-wrap items-center gap-4 md:mb-6">
+          <Link
+            href={`/delegado/partidos/${match.id}`}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand-blue px-4 text-sm font-semibold text-white"
+          >
+            <Radio className="size-4" aria-hidden />
+            Abrir marcador
+          </Link>
+          <Link href={`/partidos/${match.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-brand-blue">
+            Ver página pública
+            <ExternalLink className="size-4" aria-hidden />
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">

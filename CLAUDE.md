@@ -40,7 +40,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. Tipos generados desde Supabase.
 2. ✅ Consulta pública: Inicio, Calendario, Equipos (+ detalle), Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
 3. ✅ Panel admin (`/admin`): temporadas, equipos (logo), jugadores (foto + consentimiento, borrado total), partidos y delegados, familias, usuarios y roles, canchas. Migración 7 (`admin_helpers`) aplicada.
-4. Marcador en vivo (delegado) + Realtime + asistencia + MVP oficial.
+4. ✅ Marcador en vivo: consola del delegado en `/delegado` (iniciar, eventos con minuto, anular, asistencia, finalizar, MVP) + Realtime en la página pública del partido e Inicio.
 5. Cuenta de familia: hijos, consentimiento, equipos seguidos, voto MVP, estrellas.
 6. Notificaciones push (recordatorio y resultado final, Vercel Cron).
 7. Tarjetas de resultado para compartir (`next/og`).
@@ -51,6 +51,7 @@ Futuro: álbum de figuritas y fantasy.
 
 Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
 Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo).
+Ideas pospuestas: reloj del partido guardado en la BD con botones "Medio tiempo / Reanudar" (hoy el minuto corre en tiempo real desde el inicio y el ajuste −/+ del delegado es local y el público no lo ve).
 
 ### Base de datos (`supabase/migrations/`)
 
@@ -116,7 +117,7 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Las vistas de Postgres no traen relaciones: se consultan aparte y se unen en TypeScript (mapas por id).
 - Filtros por URL legibles: `?cat=boys-u10` (`Category.key` = género de la liga + código). `resolveCategory()` usa la primera categoría si falta o es inválida.
 - Páginas con `searchParams` o `params`: el contenido va en `<Suspense>` con `params.then(...)` (Next 16 + Cache Components). Validar ids con `isUuid()` y `notFound()`.
-- **Tono positivo en público**: la línea de tiempo del partido muestra goles, asistencias y fair play; **nunca tarjetas**. En U6/U8 sin nombres en la línea de tiempo ("Gol de <equipo>"), pero el MVP sí se muestra con nombre.
+- Línea de tiempo pública: goles, asistencias, fair play y **tarjetas** (decisión del dueño 2026-11-13); las atajadas no se muestran para no saturar. En U6/U8 sin nombres en la línea de tiempo ("Gol de <equipo>"), pero el MVP sí se muestra con nombre.
 - Fotos de jugadores aún no se muestran (círculo con el número); se activarán cuando el admin pueda subirlas (fase 3), con URLs firmadas.
 - Móvil: tarjetas (`MatchCard`) y tabla de posiciones compacta. Desktop: `MatchTable` y tabla completa (PJ, G, E, P, GF, GC, DG, Pts).
 
@@ -130,6 +131,15 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - No exportar nada que no sea el componente/metadata desde un `page.tsx` (constantes en `src/features/admin/constants.ts`).
 - **Nunca importar constantes, arrays o funciones desde un archivo `"use client"` en un componente de servidor**: llegan como referencia vacía (p. ej. `ADMIN_SECTIONS.slice is not a function`). Los datos compartidos van en archivos neutros (sin directiva), como `src/features/admin/sections.ts`.
 - Fechas de partidos: el admin escribe hora de Panamá (UTC−5, sin horario de verano) → se guarda en ISO.
+
+## Marcador en vivo (fase 4)
+
+- Consola en `/delegado/partidos/[id]` (`live-console.tsx`, cliente). Pensada para una mano en el celular: botones ≥ 64 px, hoja inferior con números de camiseta, pantalla siempre encendida (Wake Lock) mientras está en vivo.
+- Lecturas en `src/features/live/data.ts` con `liveClient()` (verifica rol delegate/admin antes de consultar). Nombres siempre desde `public_players` (el delegado no lee `players`).
+- Escrituras SOLO por acciones de servidor (`src/app/delegado/actions.ts`, `runLive`): RLS/RPC imponen que el delegado esté asignado y que el partido sea editable (en vivo o ≤ 1 h tras el final). Tras cada acción: `updateTag("matches")` y `updateTag("match-<id>")`.
+- Tiempo real: `<LiveRefresher matchId>` se suscribe a `matches`, `match_events` y `match_mvps` y hace `router.refresh()` (con espera para agrupar cambios). Inicio usa `<LiveRefresher delayMs={5000}>`. El minuto en vivo se calcula en el cliente desde `started_at` (`<LiveMinute>`).
+- El admin entra a cualquier marcador desde **Panel → Partidos → Abrir marcador**; en `/delegado` ve sus asignados + los de hoy + los en vivo.
+- El marcador nunca se escribe a mano en vivo: lo recalcula la BD desde los goles (autogol suma al rival). Errores = anular (`voided_at`), nunca borrar.
 
 ## Comandos
 

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { CalendarDays, ChevronLeft, Clock, HandHeart, MapPin, Medal, Trophy } from "lucide-react";
+import { CalendarDays, ChevronLeft, Clock, HandHeart, MapPin, Medal, Square, Trophy } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { TeamCrest } from "@/components/ui/team-crest";
+import { LiveMinute } from "@/components/live/live-minute";
+import { LiveRefresher } from "@/components/live/live-refresher";
 import { StatusBadge } from "@/features/league/components/match-list";
 import { getMatchDetail, isUuid, type MatchEvent, type Team } from "@/features/league/data";
 import { formatLongDay, formatTime } from "@/lib/format";
@@ -37,6 +39,8 @@ async function MatchContent({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Tiempo real: el marcador se actualiza solo cuando el delegado carga algo */}
+      <LiveRefresher matchId={match.id} />
       {/* Marcador */}
       <section className="rounded-3xl border border-border bg-surface p-5 md:p-8">
         <div className="mb-4 flex items-center justify-between text-xs text-muted md:text-sm">
@@ -50,11 +54,16 @@ async function MatchContent({ id }: { id: string }) {
           <TeamSide team={match.home} />
           <div className="text-center">
             {hasScore ? (
-              <p className="text-4xl font-black tabular-nums md:text-6xl">
-                {match.homeScore}
-                <span className="mx-1 text-muted md:mx-3">–</span>
-                {match.awayScore}
-              </p>
+              <>
+                <p className="text-4xl font-black tabular-nums md:text-6xl">
+                  {match.homeScore}
+                  <span className="mx-1 text-muted md:mx-3">–</span>
+                  {match.awayScore}
+                </p>
+                {match.status === "live" ? (
+                  <LiveMinute startedAt={match.startedAt} className="mt-1 block text-lg font-bold text-brand-red md:text-xl" />
+                ) : null}
+              </>
             ) : (
               <p className="text-2xl font-black text-brand-blue md:text-3xl">{formatTime(match.startsAt)}</p>
             )}
@@ -131,11 +140,13 @@ function TeamSide({ team }: { team: Team }) {
   );
 }
 
-const EVENT_LABEL: Record<string, { label: string; icon: typeof Trophy }> = {
-  goal: { label: "Gol", icon: Trophy },
+const EVENT_LABEL: Record<string, { label: string; icon: typeof Trophy; color?: string }> = {
+  goal: { label: "Gol", icon: Trophy, color: "text-brand-blue" },
   own_goal: { label: "Gol en propia puerta", icon: Trophy },
   assist: { label: "Asistencia", icon: HandHeart },
   fair_play: { label: "Fair play", icon: HandHeart },
+  yellow_card: { label: "Tarjeta amarilla", icon: Square, color: "fill-amber-400 text-amber-400" },
+  red_card: { label: "Tarjeta roja", icon: Square, color: "fill-brand-red text-brand-red" },
 };
 
 /** Línea de tiempo: local a la izquierda y visitante a la derecha (en desktop). */
@@ -155,7 +166,7 @@ function Timeline({ events, home, away }: { events: MatchEvent[]; home: Team; aw
             className={`flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 md:w-[85%] ${isHome ? "" : "md:ml-auto md:flex-row-reverse md:text-right"}`}
           >
             <span className="w-9 shrink-0 text-sm font-bold text-muted tabular-nums">{e.minute != null ? `${e.minute}'` : ""}</span>
-            <Icon className={`size-5 shrink-0 ${e.code === "goal" ? "text-brand-blue" : "text-muted"}`} aria-hidden />
+            <Icon className={`size-5 shrink-0 ${meta.color ?? "text-muted"}`} aria-hidden />
             <span className="min-w-0 flex-1 truncate text-sm font-medium">{text}</span>
             <TeamCrest team={team} size="sm" />
           </li>

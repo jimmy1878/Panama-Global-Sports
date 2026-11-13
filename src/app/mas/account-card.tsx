@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogIn, LogOut, Settings } from "lucide-react";
+import { LogIn, LogOut, Radio, Settings } from "lucide-react";
 import { getCurrentUser, ROLE_LABELS } from "@/lib/auth";
 import { signOutAction } from "../ingresar/actions";
 
@@ -44,10 +44,19 @@ export async function AccountCard() {
           <dd className="font-medium">{ROLE_LABELS[user.role]}</dd>
         </div>
       </dl>
+      {user.role === "admin" || user.role === "delegate" ? (
+        <Link
+          href="/delegado"
+          className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-brand-blue font-semibold text-brand-blue"
+        >
+          <Radio className="size-5" aria-hidden />
+          Marcador en vivo (delegado)
+        </Link>
+      ) : null}
       {user.role === "admin" ? (
         <Link
           href="/admin"
-          className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-blue font-semibold text-white"
+          className="mt-3 flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-blue font-semibold text-white"
         >
           <Settings className="size-5" aria-hidden />
           Panel de administración
