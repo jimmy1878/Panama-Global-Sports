@@ -37,7 +37,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 
 0. ✅ Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — 2026-11-13.
 1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. Tipos generados desde Supabase.
-2. Consulta pública: Inicio, Calendario, Equipos, Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
+2. ✅ Consulta pública: Inicio, Calendario, Equipos (+ detalle), Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
 3. Panel admin: temporadas, equipos, jugadores, familias, asignación de delegados.
 4. Marcador en vivo (delegado) + Realtime + asistencia + MVP oficial.
 5. Cuenta de familia: hijos, consentimiento, equipos seguidos, voto MVP, estrellas.
@@ -108,6 +108,16 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - PWA: `src/app/manifest.ts`, iconos en `public/icons/` (se regeneran con `npm run icons`), service worker estático en `public/sw.js` (página `/offline` y manejo de push). Se registra **solo en producción**; para probarla en local: `npm run build` y `npm start`. Al cambiar `sw.js`, subir `CACHE_VERSION`.
 - `experimental.useOffline` activo: `<OfflineBanner />` avisa cuando se pierde la conexión y Next reintenta solo.
 - Tipos de BD: `src/types/database.ts` se genera con `npm run db:types` (usa `SUPABASE_ACCESS_TOKEN` de `.env.local`). Regenerar después de cada migración aplicada. No editar a mano.
+
+## Datos públicos (fase 2)
+
+- Lectura pública en `src/features/league/data.ts`: cliente **sin cookies** (`createPublicClient()`) + `'use cache'` con `cacheLife("minutes")` y `cacheTag(...)`. Nunca usar el cliente con sesión para datos públicos (rompe la caché).
+- Las vistas de Postgres no traen relaciones: se consultan aparte y se unen en TypeScript (mapas por id).
+- Filtros por URL legibles: `?cat=boys-u10` (`Category.key` = género de la liga + código). `resolveCategory()` usa la primera categoría si falta o es inválida.
+- Páginas con `searchParams` o `params`: el contenido va en `<Suspense>` con `params.then(...)` (Next 16 + Cache Components). Validar ids con `isUuid()` y `notFound()`.
+- **Tono positivo en público**: la línea de tiempo del partido muestra goles, asistencias y fair play; **nunca tarjetas**. En U6/U8 sin nombres ("Gol de <equipo>") y sin MVP (pendiente de decisión).
+- Fotos de jugadores aún no se muestran (círculo con el número); se activarán cuando el admin pueda subirlas (fase 3), con URLs firmadas.
+- Móvil: tarjetas (`MatchCard`) y tabla de posiciones compacta. Desktop: `MatchTable` y tabla completa (PJ, G, E, P, GF, GC, DG, Pts).
 
 ## Comandos
 
