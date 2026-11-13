@@ -15,7 +15,7 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 
 ## Alcance funcional (fase actual)
 
-1. **Tabla de posiciones automática** por categoría y temporada: PJ, G, E, P, GF, GC, DG, Pts (3 victoria, 1 empate). Vista SQL `standings` calculada de los partidos finalizados; nunca se guarda a mano.
+1. **Tabla de posiciones automática** por categoría y temporada: PJ, G, E, P, GF, GC, DG, Pts (3 victoria, 1 empate). Vista SQL `standings` calculada de los partidos finalizados; nunca se guarda a mano. **Se muestra en todas las categorías, también U6 y U8** (decisión 2026-11-13); en U6/U8 solo se oculta lo individual.
 2. **Líderes de la temporada** (goles, asistencias, atajadas, fair play, MVP) calculados desde `match_events`. Cada categoría tiene `recognition_mode`:
    - `team_stars` (U6, U8): solo estrellas y reconocimientos de equipo. **Sin ranking individual ni tabla de goleadores** — las vistas de líderes excluyen estas categorías desde la BD, no solo desde la UI.
    - `individual_ranking` (U10 en adelante): ranking individual.
@@ -36,7 +36,7 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 Construir **una fase a la vez** y esperar aprobación antes de empezar la siguiente.
 
 0. ✅ Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — 2026-11-13.
-1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. (Pendiente: tipos generados con `npm run db:types`.)
+1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. Tipos generados desde Supabase.
 2. Consulta pública: Inicio, Calendario, Equipos, Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
 3. Panel admin: temporadas, equipos, jugadores, familias, asignación de delegados.
 4. Marcador en vivo (delegado) + Realtime + asistencia + MVP oficial.
@@ -48,7 +48,8 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 10. Certificados PDF de temporada.
 Futuro: álbum de figuritas y fantasy.
 
-Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); MVP y tabla de posiciones en U6/U8.
+Decisiones tomadas: tabla de posiciones visible en todas las categorías, incluidas U6/U8.
+Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); MVP en U6/U8 (antes de la fase 4).
 
 ### Base de datos (`supabase/migrations/`)
 
@@ -106,7 +107,7 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Redirecciones tras login: siempre con `safeNextPath()` (evita redirecciones abiertas).
 - PWA: `src/app/manifest.ts`, iconos en `public/icons/` (se regeneran con `npm run icons`), service worker estático en `public/sw.js` (página `/offline` y manejo de push). Se registra **solo en producción**; para probarla en local: `npm run build` y `npm start`. Al cambiar `sw.js`, subir `CACHE_VERSION`.
 - `experimental.useOffline` activo: `<OfflineBanner />` avisa cuando se pierde la conexión y Next reintenta solo.
-- Tipos de BD: `src/types/database.ts` es provisional hasta vincular el proyecto (`npx supabase link`) y ejecutar `npm run db:types`.
+- Tipos de BD: `src/types/database.ts` se genera con `npm run db:types` (usa `SUPABASE_ACCESS_TOKEN` de `.env.local`). Regenerar después de cada migración aplicada. No editar a mano.
 
 ## Comandos
 
@@ -116,7 +117,7 @@ npm run build   # build de producción (correr antes de dar algo por terminado)
 npm run lint
 npm run test:db # pruebas de la base de datos (PGlite simula Supabase)
 npm run icons   # regenera los iconos de la PWA
-npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase link`)
+npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase login` una vez en tu terminal)
 ```
 
 ## Estructura

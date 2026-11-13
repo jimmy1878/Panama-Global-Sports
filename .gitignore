@@ -42,3 +42,6 @@ next-env.d.ts
 
 # permitir la plantilla de variables
 !.env.example
+
+# archivos temporales de la CLI de Supabase
+supabase/.temp/
