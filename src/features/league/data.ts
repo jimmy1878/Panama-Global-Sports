@@ -310,9 +310,8 @@ export async function getMatchDetail(matchId: string) {
   if (eventsError) fail("los eventos", eventsError);
   if (mvpError) fail("el MVP", mvpError);
 
-  const names = individual
-    ? await getPlayerNames([...events.map((e) => e.player_id), ...mvps.map((m) => m.player_id)])
-    : new Map<string, string>();
+  // Nombres: en U10+ para la línea de tiempo y el MVP; en U6/U8 solo para el MVP.
+  const names = await getPlayerNames([...(individual ? events.map((e) => e.player_id) : []), ...mvps.map((m) => m.player_id)]);
 
   const timeline: MatchEvent[] = events.map((e) => ({
     id: e.id,
@@ -322,10 +321,8 @@ export async function getMatchDetail(matchId: string) {
     playerName: individual ? (names.get(e.player_id) ?? null) : null,
   }));
 
-  // MVP en U6/U8: pendiente de decisión → no se muestra todavía.
-  const mvpByTeam = individual
-    ? Object.fromEntries(mvps.map((m) => [m.team_id, names.get(m.player_id) ?? null]))
-    : {};
+  // MVP en todas las categorías (decisión 2026-11-13), también U6/U8.
+  const mvpByTeam = Object.fromEntries(mvps.map((m) => [m.team_id, names.get(m.player_id) ?? null]));
 
   return { match, category, timeline, mvpByTeam, chronicle: chronicle?.body ?? null };
 }

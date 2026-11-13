@@ -79,8 +79,8 @@ async function MatchContent({ id }: { id: string }) {
         </ul>
       </section>
 
-      {/* Jugador del partido (U10+) */}
-      {individual && Object.keys(mvpByTeam).length ? (
+      {/* Jugador del partido (todas las categorías) */}
+      {Object.keys(mvpByTeam).length ? (
         <Section title="Jugador del partido">
           <ul className="grid gap-3 sm:grid-cols-2">
             {[match.home, match.away].map((team) =>

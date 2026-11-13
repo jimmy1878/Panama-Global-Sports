@@ -15,10 +15,11 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 
 ## Alcance funcional (fase actual)
 
-1. **Tabla de posiciones automática** por categoría y temporada: PJ, G, E, P, GF, GC, DG, Pts (3 victoria, 1 empate). Vista SQL `standings` calculada de los partidos finalizados; nunca se guarda a mano. **Se muestra en todas las categorías, también U6 y U8** (decisión 2026-11-13); en U6/U8 solo se oculta lo individual.
-2. **Líderes de la temporada** (goles, asistencias, atajadas, fair play, MVP) calculados desde `match_events`. Cada categoría tiene `recognition_mode`:
-   - `team_stars` (U6, U8): solo estrellas y reconocimientos de equipo. **Sin ranking individual ni tabla de goleadores** — las vistas de líderes excluyen estas categorías desde la BD, no solo desde la UI.
-   - `individual_ranking` (U10 en adelante): ranking individual.
+1. **Tabla de posiciones automática** por categoría y temporada: PJ, G, E, P, GF, GC, DG, Pts (3 victoria, 1 empate). Vista SQL `standings` calculada de los partidos finalizados; nunca se guarda a mano. **Se muestra en todas las categorías, también U6 y U8** (decisión 2026-11-13).
+2. **Líderes de la temporada** (goles, asistencias, atajadas, fair play, MVP) calculados desde `match_events`. Cada categoría tiene `recognition_mode`, que el admin cambia en **/admin/categorias** (no es una regla fija por edad):
+   - `team_stars`: solo estrellas y reconocimientos de equipo. **Sin ranking individual ni nombres de goleadores** — las vistas excluyen estas categorías desde la BD, no solo desde la UI. Afecta también tarjetas, crónica y certificados.
+   - `individual_ranking`: ranking individual, goleadores con nombre, certificados con estadísticas.
+   - **Decisión 2026-11-13: U6 y U8 también en `individual_ranking`** (todas las categorías individuales). El código sigue soportando `team_stars`: los textos de abajo que dicen "U6/U8" se refieren a categorías en modo `team_stars`.
 3. **Jugador del partido (MVP)**: uno por equipo y partido. Configurable por liga (`leagues.mvp_mode`):
    - `official`: lo elige el delegado/árbitro asignado.
    - `parent_vote`: votan las familias de ambos equipos, **un voto por familia y por partido**, ventana de 24 h tras el final, sin votar por un hijo propio. Empate → decide el delegado/admin.
@@ -48,8 +49,8 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 10. Certificados PDF de temporada.
 Futuro: álbum de figuritas y fantasy.
 
-Decisiones tomadas: tabla de posiciones visible en todas las categorías, incluidas U6/U8.
-Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); MVP en U6/U8 (antes de la fase 4).
+Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
+Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo).
 
 ### Base de datos (`supabase/migrations/`)
 
@@ -115,7 +116,7 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Las vistas de Postgres no traen relaciones: se consultan aparte y se unen en TypeScript (mapas por id).
 - Filtros por URL legibles: `?cat=boys-u10` (`Category.key` = género de la liga + código). `resolveCategory()` usa la primera categoría si falta o es inválida.
 - Páginas con `searchParams` o `params`: el contenido va en `<Suspense>` con `params.then(...)` (Next 16 + Cache Components). Validar ids con `isUuid()` y `notFound()`.
-- **Tono positivo en público**: la línea de tiempo del partido muestra goles, asistencias y fair play; **nunca tarjetas**. En U6/U8 sin nombres ("Gol de <equipo>") y sin MVP (pendiente de decisión).
+- **Tono positivo en público**: la línea de tiempo del partido muestra goles, asistencias y fair play; **nunca tarjetas**. En U6/U8 sin nombres en la línea de tiempo ("Gol de <equipo>"), pero el MVP sí se muestra con nombre.
 - Fotos de jugadores aún no se muestran (círculo con el número); se activarán cuando el admin pueda subirlas (fase 3), con URLs firmadas.
 - Móvil: tarjetas (`MatchCard`) y tabla de posiciones compacta. Desktop: `MatchTable` y tabla completa (PJ, G, E, P, GF, GC, DG, Pts).
 
