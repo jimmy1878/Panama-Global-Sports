@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, Settings } from "lucide-react";
 import { getCurrentUser, ROLE_LABELS } from "@/lib/auth";
 import { signOutAction } from "../ingresar/actions";
 
@@ -44,7 +44,16 @@ export async function AccountCard() {
           <dd className="font-medium">{ROLE_LABELS[user.role]}</dd>
         </div>
       </dl>
-      <form action={signOutAction} className="mt-4">
+      {user.role === "admin" ? (
+        <Link
+          href="/admin"
+          className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-blue font-semibold text-white"
+        >
+          <Settings className="size-5" aria-hidden />
+          Panel de administración
+        </Link>
+      ) : null}
+      <form action={signOutAction} className="mt-3">
         <button
           type="submit"
           className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border font-semibold text-foreground"

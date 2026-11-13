@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // Detecta cuando se pierde la conexión y reintenta navegaciones y acciones al volver (PWA).
     useOffline: true,
+    // Subida de fotos/logos: el navegador las reduce antes de enviarlas; Vercel admite hasta ~4,5 MB.
+    serverActions: { bodySizeLimit: "4mb" },
   },
   turbopack: {
     rules: {

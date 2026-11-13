@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 
 /** Error inesperado (p. ej. no responde la base de datos). */
-export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <section className="mx-auto max-w-sm py-12 text-center">
       <h1 className="text-2xl font-bold">Algo salió mal</h1>
@@ -16,6 +16,15 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
         <RefreshCw className="size-4" aria-hidden />
         Reintentar
       </button>
+      {/* Solo en desarrollo: detalle técnico para diagnosticar. Nunca en producción. */}
+      {process.env.NODE_ENV === "development" ? (
+        <pre className="mt-6 overflow-x-auto rounded-xl bg-surface-muted p-3 text-left text-xs whitespace-pre-wrap text-brand-red">
+          {error.message}
+          {error.digest ? `\n(digest: ${error.digest})` : ""}
+        </pre>
+      ) : error.digest ? (
+        <p className="mt-4 text-xs text-muted">Código: {error.digest}</p>
+      ) : null}
     </section>
   );
 }

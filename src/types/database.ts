@@ -1717,6 +1717,29 @@ export type Database = {
       }
     }
     Functions: {
+      admin_find_user: {
+        Args: { p_email: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      admin_list_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      admin_set_current_season: {
+        Args: { p_season_id: string }
+        Returns: undefined
+      }
       can_upload_media: { Args: { p_match_id: string }; Returns: boolean }
       can_view_media: { Args: { p_media_id: string }; Returns: boolean }
       can_view_media_object: { Args: { p_path: string }; Returns: boolean }

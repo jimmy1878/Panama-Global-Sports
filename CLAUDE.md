@@ -38,7 +38,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 0. ✅ Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — 2026-11-13.
 1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. Tipos generados desde Supabase.
 2. ✅ Consulta pública: Inicio, Calendario, Equipos (+ detalle), Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
-3. Panel admin: temporadas, equipos, jugadores, familias, asignación de delegados.
+3. ✅ Panel admin (`/admin`): temporadas, equipos (logo), jugadores (foto + consentimiento, borrado total), partidos y delegados, familias, usuarios y roles, canchas. Migración 7 (`admin_helpers`) aplicada.
 4. Marcador en vivo (delegado) + Realtime + asistencia + MVP oficial.
 5. Cuenta de familia: hijos, consentimiento, equipos seguidos, voto MVP, estrellas.
 6. Notificaciones push (recordatorio y resultado final, Vercel Cron).
@@ -118,6 +118,17 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - **Tono positivo en público**: la línea de tiempo del partido muestra goles, asistencias y fair play; **nunca tarjetas**. En U6/U8 sin nombres ("Gol de <equipo>") y sin MVP (pendiente de decisión).
 - Fotos de jugadores aún no se muestran (círculo con el número); se activarán cuando el admin pueda subirlas (fase 3), con URLs firmadas.
 - Móvil: tarjetas (`MatchCard`) y tabla de posiciones compacta. Desktop: `MatchTable` y tabla completa (PJ, G, E, P, GF, GC, DG, Pts).
+
+## Panel de administración (fase 3)
+
+- Rutas en `src/app/admin/*`; cada sección tiene `page.tsx` + `actions.ts`. Acceso desde **Más → Panel de administración** (solo admin).
+- **Next ejecuta layout y página en paralelo**: el control del layout (`AdminGate`) no basta. Toda lectura privada va en `src/features/admin/data.ts` con `adminClient()` (verifica el rol antes de consultar). Nunca usar `createClient()` directo en páginas del panel.
+- Toda acción pasa por `runAdmin()` (`src/features/admin/action.ts`): verifica rol, usa la sesión (RLS) y traduce errores de Postgres al español. Validación con **zod** (`parseForm`). Tras escribir, `refreshPublic(tags)` (= `updateTag`) para que el público vea el cambio al instante.
+- Formularios con `<AdminForm>` (`src/features/admin/form.tsx`): no borra lo escrito si hay error, muestra errores por campo y reduce fotos en el navegador (≤1600 px) antes de enviarlas.
+- Imágenes: `processImage()` con **sharp** en el servidor → WebP, sin EXIF/GPS. Logos en `team-logos/{team_id}/…` (público); fotos en `player-photos/{player_id}/…` (privado, URL firmada de 1 h). Límite de acciones: 4 MB (`next.config.ts`).
+- No exportar nada que no sea el componente/metadata desde un `page.tsx` (constantes en `src/features/admin/constants.ts`).
+- **Nunca importar constantes, arrays o funciones desde un archivo `"use client"` en un componente de servidor**: llegan como referencia vacía (p. ej. `ADMIN_SECTIONS.slice is not a function`). Los datos compartidos van en archivos neutros (sin directiva), como `src/features/admin/sections.ts`.
+- Fechas de partidos: el admin escribe hora de Panamá (UTC−5, sin horario de verano) → se guarda en ISO.
 
 ## Comandos
 

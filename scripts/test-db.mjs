@@ -398,5 +398,22 @@ await expectFail("rechaza partido entre categorías distintas", `insert into mat
   select t1.season_id, t1.category_id, t1.id, t2.id, now() from teams t1, teams t2 where t1.category_id <> t2.category_id limit 1`, /foreign key/);
 await expectOk("admin cambia el rol de otro usuario", user(ADMIN, `update profiles set role='delegate' where id='${HACKER}'`));
 
+// ---------------------------------------------------------------------------
+// Funciones del panel de administración
+// ---------------------------------------------------------------------------
+console.log("Panel admin:");
+const users = await q(user(ADMIN, `select email, role from admin_list_users()`));
+check(users.length >= 7 && users.some((u) => u.email === "a@x" && u.role === "admin"), `admin lista usuarios con correo (${users.length})`);
+await expectFail("un padre no lista usuarios", user(PARENT, `select * from admin_list_users()`), /No autorizado/);
+await expectFail("el público no lista usuarios", anon(`select * from admin_list_users()`), /permission denied/);
+const found = await q(user(ADMIN, `select id from admin_find_user('  P@X ')`));
+check(found.length === 1 && found[0].id === PARENT, "admin busca usuario por correo (sin importar mayúsculas/espacios)");
+await expectFail("un delegado no busca usuarios", user(DELEG, `select * from admin_find_user('p@x')`), /No autorizado/);
+const S1 = (await q(`select id from seasons where number=1`))[0].id;
+await expectOk("admin cambia la temporada actual", user(ADMIN, `select admin_set_current_season('${S1}')`));
+check((await q(`select number from seasons where is_current`)).map((r) => r.number).join() === "1", "solo una temporada actual (la nueva)");
+await expectFail("un padre no cambia la temporada", user(PARENT, `select admin_set_current_season('${S1}')`), /No autorizado/);
+await db.exec(`select admin_set_current_season((select id from seasons where number=5))`);
+
 console.log(failures ? `\n${failures} PRUEBA(S) FALLARON, ${passed} pasaron` : `\nTODAS LAS PRUEBAS PASARON (${passed})`);
 process.exit(failures ? 1 : 0);
