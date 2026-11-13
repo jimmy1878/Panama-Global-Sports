@@ -13,22 +13,69 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 - Cada categoría: **6 equipos** de **12 a 18 jugadores**.
 - **5 temporadas por año**. Los rosters cambian por temporada: un jugador pertenece a un equipo *en una temporada*, no de forma permanente.
 
+## Alcance funcional (fase actual)
+
+1. **Tabla de posiciones automática** por categoría y temporada: PJ, G, E, P, GF, GC, DG, Pts (3 victoria, 1 empate). Vista SQL `standings` calculada de los partidos finalizados; nunca se guarda a mano.
+2. **Líderes de la temporada** (goles, asistencias, atajadas, fair play, MVP) calculados desde `match_events`. Cada categoría tiene `recognition_mode`:
+   - `team_stars` (U6, U8): solo estrellas y reconocimientos de equipo. **Sin ranking individual ni tabla de goleadores** — las vistas de líderes excluyen estas categorías desde la BD, no solo desde la UI.
+   - `individual_ranking` (U10 en adelante): ranking individual.
+3. **Jugador del partido (MVP)**: uno por equipo y partido. Configurable por liga (`leagues.mvp_mode`):
+   - `official`: lo elige el delegado/árbitro asignado.
+   - `parent_vote`: votan las familias de ambos equipos, **un voto por familia y por partido**, ventana de 24 h tras el final, sin votar por un hijo propio. Empate → decide el delegado/admin.
+   - Las cuentas de padres se vinculan a sus hijos mediante **familias** (`families`, `family_members`, `family_players`); una familia puede tener varios hijos y varios adultos.
+   - El MVP suma puntos extra (`event_types.code = 'mvp'`) y en el futuro desbloqueará una figurita especial (`match_mvps` es el ancla).
+4. **Marcador en vivo**: el delegado/árbitro inicia (`start_match`), carga goles y eventos con minuto desde el celular (pantalla mínima, botones grandes) y finaliza (`finish_match`). El marcador se recalcula solo a partir de los goles. Los errores se corrigen anulando el evento (`voided_at`), nunca borrándolo. Los padres lo siguen con **Supabase Realtime** (`matches`, `match_events`, `match_mvps`).
+5. **Notificaciones push (Web Push, PWA)**: recordatorio el día anterior ("Tu equipo juega mañana 9:00 en Cancha 2"), resultado final ("Final: Tigres 3 – Leones 1") y, en la fase del álbum, sobres nuevos. Cada usuario sigue equipos (`team_follows`) y elige qué recibe (`notification_preferences`). El envío es solo en servidor (service role) y se registra en `notification_log` para no duplicar. La web es una **PWA instalable**.
+6. **Galería por partido** (fotos y videos ≤ 30 s, comprimidos). Suben admins, delegados asignados y familias con hijos en el partido. Flujo: el original va al bucket de cuarentena `media-uploads/{user_id}/…` → el **servidor** elimina EXIF/GPS, comprime y escribe en `match-media` (`status = pending_review`) → un **admin** aprueba o rechaza. Cada archivo lleva etiquetados los jugadores (`media_tags`); si alguno **no tiene consentimiento de foto**, la BD **impide aprobar** hasta que el admin lo recorte/difumine (`redacted = true`). Si un padre retira el consentimiento después, el contenido se oculta al instante y vuelve a `media_review_queue`. Solo lo ven **familias registradas de la liga** (y admin), con **URLs firmadas**.
+7. **Tarjeta de resultado** para Instagram (1080×1350) y WhatsApp (1080×1080): logos, colores, marcador, goleadores (`public_match_scorers`, solo nombre + inicial) y marca Panama Global Sports. Imagen generada en servidor con `next/og` (`ImageResponse`). En U6/U8 sin goleadores (la vista ya no los devuelve). Botón de compartir con Web Share API (`navigator.share` con archivo), con descarga como alternativa.
+8. **Crónica automática** con la API de Claude (`@anthropic-ai/sdk`, modelo `claude-opus-5-5`, solo servidor, `ANTHROPIC_API_KEY` en variables de entorno). Entrada: eventos del partido (sin datos privados). Reglas: tono siempre positivo y celebratorio, nunca mencionar errores ni criticar a un niño, solo nombre + inicial, **80–120 palabras**, español; en U6/U8 centrada en el equipo, sin destacar individuos. Se guarda como **borrador** en `match_chronicles`; el admin la edita y la publica. Validar en código el conteo de palabras y que no aparezcan apellidos completos antes de guardar.
+9. **Certificado de temporada en PDF** por jugador al cerrar la temporada (`seasons.closed_at`): nombre, equipo, categoría, temporada y estadísticas (partidos jugados, goles, asistencias, MVPs, estrellas). En U6/U8: participación y valores, **sin números individuales** (la vista devuelve `null`). Solo lo descarga la familia vinculada (vista `my_family_season_certificates`).
+
+## Hoja de ruta (orden aprobado el 2026-11-13)
+
+Construir **una fase a la vez** y esperar aprobación antes de empezar la siguiente.
+
+0. Base de datos aplicada en Supabase (migraciones + seed + usuario admin) — la hace el dueño del proyecto.
+1. Fundamentos: conexión Supabase + tipos generados, login, refresco de sesión en `src/proxy.ts`, PWA instalable.
+2. Consulta pública: Inicio, Calendario, Equipos, Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
+3. Panel admin: temporadas, equipos, jugadores, familias, asignación de delegados.
+4. Marcador en vivo (delegado) + Realtime + asistencia + MVP oficial.
+5. Cuenta de familia: hijos, consentimiento, equipos seguidos, voto MVP, estrellas.
+6. Notificaciones push (recordatorio y resultado final, Vercel Cron).
+7. Tarjetas de resultado para compartir (`next/og`).
+8. Crónica con la API de Claude.
+9. Galería (subida, procesamiento, etiquetado, revisión).
+10. Certificados PDF de temporada.
+Futuro: álbum de figuritas y fantasy.
+
+Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); MVP y tabla de posiciones en U6/U8.
+
 ### Base de datos (`supabase/migrations/`)
 
 ```
-sports → leagues → categories          seasons (5/año, una is_current)
+sports → leagues (mvp_mode) → categories (recognition_mode)     seasons (5/año, una is_current)
 teams (season × category; colores, logo_path)
 players (privada) ← roster_entries (player × team × season; número, posición)
-matches (season, category, home/away, venue, starts_at, status, marcador)
-match_events (match, team, player, event_type) → event_types.points (≥ 0)
-profiles (role: admin | delegate | parent) · player_guardians · match_officials
+matches (season, category, home/away, venue, starts_at, status, marcador, started_at, finished_at)
+match_events (match, team, player, event_type, minute, voided_at) → event_types.points (≥ 0)
+match_mvps (match × team) · mvp_votes (match × family)
+profiles (role: admin | delegate | parent) · families · family_members · family_players · match_officials
+team_follows · notification_preferences · push_subscriptions · notification_log (solo servidor)
+match_attendance (partidos jugados) · media_items → media_tags · match_chronicles
 ```
 
-- **Público lee**: `sports, leagues, categories, seasons, venues, teams, roster_entries, matches, event_types, match_events` y las vistas `public_players`, `player_season_stats`, `standings`.
+- **Público lee**: `sports, leagues, categories, seasons, venues, teams, roster_entries, matches, match_attendance, event_types, match_events, match_mvps`, crónicas publicadas y las vistas `public_players`, `standings`, `scoring_events`, `player_season_stats`, `season_leaders`, `team_season_recognitions`, `public_match_scorers`.
+- **Solo familias de la liga (y admin)**: galería aprobada (`media_items`, bucket `match-media`).
+- **Solo la familia del niño (y admin)**: `my_family_player_stars`, `my_family_season_certificates`, `mvp_votes` de su familia, datos completos en `players`.
 - **Nunca leer `players` desde el público**: usar `public_players` (nombre + inicial, foto solo con consentimiento).
-- **Escritura**: admin todo; delegate solo marcador/estado y eventos de partidos asignados en `match_officials`; parent solo `set_photo_consent()` de sus hijos.
+- **Escritura**:
+  - admin: todo.
+  - delegate (asignado en `match_officials`): `start_match`, `finish_match`, cargar/corregir eventos mientras el partido está en vivo y hasta 1 h después del final, `set_match_mvp`.
+  - parent: `set_photo_consent()`, `cast_mvp_vote()`, sus equipos seguidos, preferencias y suscripciones push.
+- Acciones con reglas de negocio = **funciones RPC `security definer`** que validan permisos; no abrir políticas de escritura amplias.
 - Los roles se cambian solo por un admin (o desde el SQL Editor). El registro siempre crea `parent`.
-- Storage: `team-logos` (público), `player-photos` (privado, servido solo con consentimiento).
+- Storage: `team-logos` (público), `player-photos` (privado, servido solo con consentimiento), `media-uploads` (cuarentena, solo servidor lee), `match-media` (privado, URLs firmadas).
+- Pruebas de BD: `npm run test:db` (PGlite simula Supabase). Ejecutarlo tras cualquier cambio en migraciones o seed y añadir pruebas para cada regla nueva de RLS.
 - Cambios de esquema = **nueva migración** con timestamp; nunca editar una migración ya aplicada. Datos de prueba en `supabase/seed.sql`.
 - Futuro álbum/fantasy: las figuritas referencian `roster_entries`; los puntos salen de `match_events`.
 
@@ -96,8 +143,9 @@ Aplica la Ley 81 de 2019 de Protección de Datos Personales de Panamá. En caso 
 5. **Row Level Security activado en todas las tablas** de Supabase, sin excepción. Los datos públicos se exponen mediante vistas (`public_players`, etc.) que solo contienen campos permitidos.
 6. La `SUPABASE_SERVICE_ROLE_KEY` solo se usa en servidor. Nunca en código con `"use client"` ni con prefijo `NEXT_PUBLIC_`.
 7. Sin chat ni mensajes de texto libre entre usuarios. Sin perfiles buscables de menores por nombre fuera del contexto de su equipo.
-8. Imágenes subidas: eliminar metadatos EXIF (ubicación GPS).
-9. No enviar datos de jugadores a servicios de analítica o terceros.
+8. Imágenes y videos subidos: eliminar metadatos EXIF/GPS **en el servidor** antes de que nadie más los vea. Nada se publica sin aprobación de un admin.
+9. No enviar datos de jugadores a servicios de analítica o terceros. Excepción: la API de Claude para crónicas recibe solo nombre + inicial y eventos del partido, nunca datos privados.
+10. Todo texto generado por IA sobre niños es un borrador hasta que un admin lo aprueba.
 
 ## Fases futuras (NO construir todavía, pero diseñar pensando en ellas)
 

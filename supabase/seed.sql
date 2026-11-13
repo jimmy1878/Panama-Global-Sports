@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Panama Global Sports · Datos de PRUEBA (ficticios)
 --
--- Requiere haber ejecutado antes las 5 migraciones (que crean el deporte, las
+-- Requiere haber ejecutado antes TODAS las migraciones (crean el deporte, las
 -- 2 ligas, las 10 categorías reales y los tipos de evento).
 --
 -- Crea:
@@ -10,7 +10,8 @@
 --   · 6 equipos por categoría (60 equipos) en la temporada actual
 --   · 12–18 jugadores ficticios por equipo (nombre + inicial, sin foto)
 --   · calendario todos-contra-todos (5 jornadas); jornadas 1–3 jugadas con
---     resultados y eventos (goles, asistencias, atajadas, fair play, tarjetas)
+--     resultados, eventos (goles, asistencias, atajadas, fair play, tarjetas)
+--     y un MVP por equipo
 --
 -- Solo para una base vacía: si ya hay temporadas, se detiene sin tocar nada.
 -- =============================================================================
@@ -72,6 +73,7 @@ declare
   field uuid[]; whole uuid[]; v_gk uuid;
   v_scorer uuid; v_assister uuid;
   v_minute int;
+  v_kickoff timestamptz;
   cat_idx int := 0;
   n int; i int; r int; p int; k int; side int;
 begin
@@ -181,16 +183,20 @@ begin
           v_hs := null; v_as := null;
         end if;
 
+        v_kickoff := ((date '2026-10-24' + r * 7) + time '08:00' + cat_idx * interval '1 hour')
+                       at time zone 'America/Panama';
+
         insert into public.matches (
           season_id, category_id, home_team_id, away_team_id, venue_id,
-          starts_at, matchday, status, home_score, away_score
+          starts_at, matchday, status, home_score, away_score, started_at, finished_at
         ) values (
           v_season, cat.id, v_home, v_away, v_venues[p],
-          ((date '2026-10-24' + r * 7) + time '08:00' + cat_idx * interval '1 hour')
-            at time zone 'America/Panama',
+          v_kickoff,
           r + 1,
           case when r < 3 then 'finished' else 'scheduled' end::public.match_status,
-          v_hs, v_as
+          v_hs, v_as,
+          case when r < 3 then v_kickoff end,
+          case when r < 3 then v_kickoff + interval '50 minutes' end
         )
         returning id into v_match;
 
@@ -248,6 +254,19 @@ begin
             values (v_match, v_side_team, field[1 + floor(random() * array_length(field, 1))::int], et_red,
                     1 + floor(random() * 50)::int);
           end if;
+
+          -- MVP del equipo (elegido por el delegado en el modo por defecto)
+          insert into public.match_mvps (match_id, team_id, player_id, source)
+          values (v_match, v_side_team, whole[1 + floor(random() * array_length(whole, 1))::int], 'official');
+
+          -- Asistencia: ~92 % presentes; quien tuvo eventos o fue MVP, siempre presente
+          insert into public.match_attendance (match_id, player_id, team_id)
+          select v_match, r.player_id, r.team_id
+          from public.roster_entries r
+          where r.team_id = v_side_team
+            and (random() > 0.08
+                 or exists (select 1 from public.match_events e where e.match_id = v_match and e.player_id = r.player_id)
+                 or exists (select 1 from public.match_mvps mv where mv.match_id = v_match and mv.player_id = r.player_id));
         end loop;
       end loop;
     end loop;
