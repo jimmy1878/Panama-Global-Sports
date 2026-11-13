@@ -13,14 +13,24 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 - Cada categoría: **6 equipos** de **12 a 18 jugadores**.
 - **5 temporadas por año**. Los rosters cambian por temporada: un jugador pertenece a un equipo *en una temporada*, no de forma permanente.
 
-### Modelo de dominio (referencia)
+### Base de datos (`supabase/migrations/`)
 
 ```
-sport → league → category (U8, U10…) → season → team → roster_entry (player × team × season)
-match (season, category, home_team, away_team, fecha, cancha, resultado)
-match_event (gol, asistencia, tarjeta…) → base para estadísticas, figuritas y fantasy
-player (datos privados) ≠ user (cuenta de padre/tutor, admin, entrenador)
+sports → leagues → categories          seasons (5/año, una is_current)
+teams (season × category; colores, logo_path)
+players (privada) ← roster_entries (player × team × season; número, posición)
+matches (season, category, home/away, venue, starts_at, status, marcador)
+match_events (match, team, player, event_type) → event_types.points (≥ 0)
+profiles (role: admin | delegate | parent) · player_guardians · match_officials
 ```
+
+- **Público lee**: `sports, leagues, categories, seasons, venues, teams, roster_entries, matches, event_types, match_events` y las vistas `public_players`, `player_season_stats`, `standings`.
+- **Nunca leer `players` desde el público**: usar `public_players` (nombre + inicial, foto solo con consentimiento).
+- **Escritura**: admin todo; delegate solo marcador/estado y eventos de partidos asignados en `match_officials`; parent solo `set_photo_consent()` de sus hijos.
+- Los roles se cambian solo por un admin (o desde el SQL Editor). El registro siempre crea `parent`.
+- Storage: `team-logos` (público), `player-photos` (privado, servido solo con consentimiento).
+- Cambios de esquema = **nueva migración** con timestamp; nunca editar una migración ya aplicada. Datos de prueba en `supabase/seed.sql`.
+- Futuro álbum/fantasy: las figuritas referencian `roster_entries`; los puntos salen de `match_events`.
 
 ## Stack
 
