@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Tokens de diseño. Usar estas clases (bg-brand-blue, text-muted…) en vez de hex sueltos. */
+:root {
+  --background: #f6f7f9;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-muted: #eef1f5;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  /* Inspirados en la bandera de Panamá */
+  --brand-blue: #005293;
+  --brand-red: #d21034;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-red: var(--brand-red);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
