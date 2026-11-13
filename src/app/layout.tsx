@@ -19,6 +19,13 @@ export const metadata: Metadata = {
     template: "%s · Panama Global Sports",
   },
   description: "Ligas deportivas infantiles en Panamá: calendario, equipos y estadísticas.",
+  applicationName: "Panama Global Sports",
+  appleWebApp: {
+    capable: true,
+    title: "PGS",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

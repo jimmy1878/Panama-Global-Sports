@@ -95,12 +95,26 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - `middleware.ts` ahora se llama **`proxy.ts`** (va en `src/proxy.ts`). Ahí irá el refresco de sesión de Supabase cuando se implemente auth.
 - Con `cacheComponents`, los client components que usan `usePathname`/`useSearchParams` deben ir dentro de `<Suspense>` para no romper el prerender en rutas dinámicas.
 
+## Autenticación y PWA (fase 1)
+
+- **Login sin contraseña con código de 6 dígitos por email** (`signInWithOtp` + `verifyOtp`), no con enlace mágico: en una PWA instalada el enlace se abre en el navegador, no en la app. Página `/ingresar`, acciones en `src/app/ingresar/actions.ts`.
+- **Leer la sesión solo con `getCurrentUser()` / `requireUser()` / `requireRole()`** de `src/lib/auth.ts` (Data Access Layer). Usa `getClaims()` (valida el JWT). Con Cache Components, todo componente que lea la sesión va dentro de `<Suspense>` con un fallback del mismo tamaño.
+- `requireRole` es solo comodidad de UI: la seguridad real la imponen RLS y las RPC en la BD.
+- `src/proxy.ts` refresca la sesión en cada petición. Si faltan las variables de Supabase, la app funciona sin login (`getSupabaseEnv()` devuelve null).
+- Redirecciones tras login: siempre con `safeNextPath()` (evita redirecciones abiertas).
+- PWA: `src/app/manifest.ts`, iconos en `public/icons/` (se regeneran con `npm run icons`), service worker estático en `public/sw.js` (página `/offline` y manejo de push). Se registra **solo en producción**; para probarla en local: `npm run build` y `npm start`. Al cambiar `sw.js`, subir `CACHE_VERSION`.
+- `experimental.useOffline` activo: `<OfflineBanner />` avisa cuando se pierde la conexión y Next reintenta solo.
+- Tipos de BD: `src/types/database.ts` es provisional hasta vincular el proyecto (`npx supabase link`) y ejecutar `npm run db:types`.
+
 ## Comandos
 
 ```powershell
 npm run dev     # servidor local en http://localhost:3000
 npm run build   # build de producción (correr antes de dar algo por terminado)
 npm run lint
+npm run test:db # pruebas de la base de datos (PGlite simula Supabase)
+npm run icons   # regenera los iconos de la PWA
+npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase link`)
 ```
 
 ## Estructura
