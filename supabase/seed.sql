@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Panama Global Sports · Datos de PRUEBA (ficticios)
 --
--- Requiere haber ejecutado antes TODAS las migraciones (crean el deporte, las
+-- Requiere haber ejecutado antes las 6 migraciones (crean el deporte, las
 -- 2 ligas, las 10 categorías reales y los tipos de evento).
 --
 -- Crea:

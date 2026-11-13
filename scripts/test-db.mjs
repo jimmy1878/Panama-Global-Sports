@@ -91,6 +91,12 @@ check(pairs === 0, "todos contra todos: cada par se enfrenta una vez");
 const realtime = (await q(`select string_agg(tablename, ',' order by tablename) t from pg_publication_tables where pubname='supabase_realtime'`))[0].t;
 check(realtime === "match_events,match_mvps,matches,media_items", "Realtime publica matches, match_events, match_mvps y media_items", realtime);
 
+const noRls = (await q(`select coalesce(string_agg(relname, ','), '') t from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public' and c.relkind='r' and not c.relrowsecurity`))[0].t;
+check(noRls === "", "todas las tablas tienen Row Level Security", noRls);
+const tables = (await q(`select count(*)::int c from pg_tables where schemaname='public'`))[0].c;
+console.log("   tablas: " + tables);
+
 // ---------------------------------------------------------------------------
 // Usuarios de prueba
 // ---------------------------------------------------------------------------
@@ -115,8 +121,8 @@ check((await q(user(PARENT, `update profiles set full_name='x' where id='${ADMIN
 // Público
 // ---------------------------------------------------------------------------
 console.log("Público (anon):");
-const P1 = (await q(`select id from players where photo_consent order by id limit 1`))[0].id;
-const P2 = (await q(`select id from players where not photo_consent order by id limit 1`))[0].id;
+const P1 = (await q(`select p.id from players p join roster_entries r on r.player_id=p.id join teams t on t.id=r.team_id join categories c on c.id=t.category_id join leagues l on l.id=c.league_id where l.gender='girls' and c.code='U12' and r.jersey_number between 4 and 12 and p.photo_consent order by t.slug, r.jersey_number limit 1`))[0].id;
+const P2 = (await q(`select p.id from players p join roster_entries r on r.player_id=p.id join teams t on t.id=r.team_id join categories c on c.id=t.category_id join leagues l on l.id=c.league_id where l.gender='girls' and c.code='U12' and r.jersey_number between 4 and 12 and not p.photo_consent order by t.slug, r.jersey_number limit 1`))[0].id;
 await db.exec(`update players set photo_path = id::text || '.jpg' where id in ('${P1}','${P2}');
   insert into storage.objects (bucket_id, name) values ('player-photos','${P1}.jpg'), ('player-photos','${P2}.jpg');`);
 

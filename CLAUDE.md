@@ -35,7 +35,7 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 
 Construir **una fase a la vez** y esperar aprobación antes de empezar la siguiente.
 
-0. Base de datos aplicada en Supabase (migraciones + seed + usuario admin) — la hace el dueño del proyecto.
+0. Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — la hace el dueño del proyecto.
 1. Fundamentos: conexión Supabase + tipos generados, login, refresco de sesión en `src/proxy.ts`, PWA instalable.
 2. Consulta pública: Inicio, Calendario, Equipos, Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
 3. Panel admin: temporadas, equipos, jugadores, familias, asignación de delegados.
@@ -76,7 +76,8 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Los roles se cambian solo por un admin (o desde el SQL Editor). El registro siempre crea `parent`.
 - Storage: `team-logos` (público), `player-photos` (privado, servido solo con consentimiento), `media-uploads` (cuarentena, solo servidor lee), `match-media` (privado, URLs firmadas).
 - Pruebas de BD: `npm run test:db` (PGlite simula Supabase). Ejecutarlo tras cualquier cambio en migraciones o seed y añadir pruebas para cada regla nueva de RLS.
-- Cambios de esquema = **nueva migración** con timestamp; nunca editar una migración ya aplicada. Datos de prueba en `supabase/seed.sql`.
+- Esquema unificado en 6 archivos: `…000100_core_schema` (tablas), `…000200_functions_and_rls` (acceso, triggers, RLS), `…000300_rpc` (acciones), `…000400_views` (todo lo calculado), `…000500_storage` (buckets), `…000600_reference_data_and_realtime`.
+- Cambios de esquema = **nueva migración** con timestamp; nunca editar una migración ya aplicada en Supabase. Datos de prueba en `supabase/seed.sql`.
 - Futuro álbum/fantasy: las figuritas referencian `roster_entries`; los puntos salen de `match_events`.
 
 ## Stack
