@@ -7,7 +7,9 @@ import { loginAction, type LoginState } from "./actions";
 const initialState: LoginState = { step: "email", email: "" };
 
 export function LoginForm() {
-  const next = useSearchParams().get("next") ?? "/mas";
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/mas";
+  const linkFailed = searchParams.get("error") === "enlace";
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (
@@ -69,6 +71,10 @@ export function LoginForm() {
           <p className="text-brand-red">{state.error}</p>
         ) : state.message ? (
           <p className="text-muted">{state.message}</p>
+        ) : linkFailed ? (
+          <p className="text-brand-red">
+            El enlace no funcionó o ya venció. Pide un correo nuevo y ábrelo en este mismo navegador.
+          </p>
         ) : null}
       </div>
     </form>

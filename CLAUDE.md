@@ -35,8 +35,8 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 
 Construir **una fase a la vez** y esperar aprobación antes de empezar la siguiente.
 
-0. Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — la hace el dueño del proyecto.
-1. Fundamentos: conexión Supabase + tipos generados, login, refresco de sesión en `src/proxy.ts`, PWA instalable.
+0. ✅ Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — 2026-11-13.
+1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. (Pendiente: tipos generados con `npm run db:types`.)
 2. Consulta pública: Inicio, Calendario, Equipos, Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
 3. Panel admin: temporadas, equipos, jugadores, familias, asignación de delegados.
 4. Marcador en vivo (delegado) + Realtime + asistencia + MVP oficial.
@@ -98,6 +98,8 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 ## Autenticación y PWA (fase 1)
 
 - **Login sin contraseña con código de 6 dígitos por email** (`signInWithOtp` + `verifyOtp`), no con enlace mágico: en una PWA instalada el enlace se abre en el navegador, no en la app. Página `/ingresar`, acciones en `src/app/ingresar/actions.ts`.
+- Mientras Supabase use su correo por defecto (no deja editar plantillas), el correo trae un **enlace**: vuelve a `/auth/callback` (flujo PKCE, abrir en el mismo navegador). Con SMTP propio, añadir `{{ .Token }}` a las plantillas *Magic Link* y *Confirm signup* para usar el código. Antes de abrir la app a los padres hace falta SMTP propio (el correo por defecto solo llega al equipo del proyecto y tiene límite por hora).
+- `getCurrentUser()` llama a `connection()` primero: la sesión nunca se prerenderiza y `getClaims()` usa `Date.now()`.
 - **Leer la sesión solo con `getCurrentUser()` / `requireUser()` / `requireRole()`** de `src/lib/auth.ts` (Data Access Layer). Usa `getClaims()` (valida el JWT). Con Cache Components, todo componente que lea la sesión va dentro de `<Suspense>` con un fallback del mismo tamaño.
 - `requireRole` es solo comodidad de UI: la seguridad real la imponen RLS y las RPC en la BD.
 - `src/proxy.ts` refresca la sesión en cada petición. Si faltan las variables de Supabase, la app funciona sin login (`getSupabaseEnv()` devuelve null).

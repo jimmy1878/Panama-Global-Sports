@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import type { AppRole } from "@/types/database";
 import { getSupabaseEnv } from "./supabase/env";
 import { createClient } from "./supabase/server";
@@ -24,6 +25,9 @@ export const ROLE_LABELS: Record<AppRole, string> = {
  * en la misma petición.
  */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  // La sesión es por petición: nunca se prerenderiza. Además, getClaims() usa
+  // Date.now() para validar el vencimiento del token, y Next exige marcarlo.
+  await connection();
   if (!getSupabaseEnv()) return null;
 
   const supabase = await createClient();

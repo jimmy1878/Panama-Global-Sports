@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { safeNextPath } from "@/lib/auth";
 import { SUPABASE_NOT_CONFIGURED, getSupabaseEnv } from "@/lib/supabase/env";
@@ -33,7 +34,14 @@ export async function loginAction(prev: LoginState, formData: FormData): Promise
   const supabase = await createClient();
 
   if (intent === "send") {
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    // El correo trae un código y/o un enlace (según la plantilla de Supabase).
+    // El enlace vuelve a /auth/callback, que abre la sesión y lleva a `next`.
+    const next = safeNextPath(formData.get("next"));
+    const emailRedirectTo = `${await getOrigin()}/auth/callback?next=${encodeURIComponent(next)}`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true, emailRedirectTo },
+    });
     if (error) {
       return {
         step: "email",
@@ -44,7 +52,11 @@ export async function loginAction(prev: LoginState, formData: FormData): Promise
             : "No pudimos enviar el código. Revisa el correo e inténtalo de nuevo.",
       };
     }
-    return { step: "code", email, message: `Te enviamos un código a ${email}.` };
+    return {
+      step: "code",
+      email,
+      message: `Te enviamos un correo a ${email}. Escribe el código o toca el enlace del correo desde este mismo navegador.`,
+    };
   }
 
   if (intent === "verify") {
@@ -60,6 +72,16 @@ export async function loginAction(prev: LoginState, formData: FormData): Promise
   }
 
   return prev;
+}
+
+/** Origen de la petición (http://localhost:3000 en local, el dominio real en Vercel). */
+async function getOrigin() {
+  const h = await headers();
+  const origin = h.get("origin");
+  if (origin) return origin;
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
 
 export async function signOutAction() {
