@@ -70,7 +70,7 @@ async function FamilyContent() {
         ))}
       </ul>
 
-      <Section title="Equipos que sigues">
+      <Section title="Equipos que sigues" href="/avisos" linkLabel="Configurar avisos">
         {followedTeams.length ? (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {followedTeams.map((t) => (

@@ -1,7 +1,9 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
+import { sendFinalResult } from "@/features/notifications/match-alerts";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,9 +45,12 @@ export async function startMatch(matchId: string) {
 }
 
 export async function finishMatch(matchId: string) {
-  return runLive(matchId, async (supabase) => {
+  const result = await runLive(matchId, async (supabase) => {
     must(await supabase.rpc("finish_match", { p_match_id: matchId }));
   });
+  // Aviso "Final: …" a quienes siguen a los equipos, sin hacer esperar al delegado.
+  if (result.ok) after(() => sendFinalResult(matchId).catch((e) => console.error("Aviso de resultado", e)));
+  return result;
 }
 
 const eventSchema = z.object({

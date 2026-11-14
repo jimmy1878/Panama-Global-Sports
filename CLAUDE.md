@@ -42,7 +42,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 3. ✅ Panel admin (`/admin`): temporadas, equipos (logo), jugadores (foto + consentimiento, borrado total), partidos y delegados, familias, usuarios y roles, canchas. Migración 7 (`admin_helpers`) aplicada.
 4. ✅ Marcador en vivo: consola del delegado en `/delegado` (iniciar, eventos con minuto, anular, asistencia, finalizar, MVP) + Realtime en la página pública del partido e Inicio.
 5. ✅ Cuenta de familia (`/familia`): hijos con estadísticas y próximo partido, consentimiento de foto, equipos seguidos (botón también en la página del equipo), voto MVP en la página del partido. Panel: MVP por liga (delegado o votación) y cierre manual de la votación.
-6. Notificaciones push (recordatorio y resultado final, Vercel Cron).
+6. 🔧 Notificaciones push: código listo (`/avisos`, resultado final al terminar, cron diario con recordatorios y cierre de votaciones). Falta: `SUPABASE_SERVICE_ROLE_KEY` y desplegar en Vercel.
 7. Tarjetas de resultado para compartir (`next/og`).
 8. Crónica con la API de Claude.
 9. Galería (subida, procesamiento, etiquetado, revisión).
@@ -148,6 +148,15 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Votación visible solo si la liga tiene `mvp_mode = parent_vote`, el partido terminó y no venció el plazo. Estados: ingresar / no elegible / ya votó / votar. Los votos son secretos (cada familia solo ve el suyo).
 - El cierre de votaciones es manual (Panel → Partidos → Cerrar votación) hasta que la fase 6 programe `close_expired_mvp_votes()`.
 - Si una cuenta no tiene hijos vinculados, `/familia` muestra su correo para que el admin la vincule.
+
+## Notificaciones push (fase 6)
+
+- `/avisos`: activar/desactivar en el dispositivo (Web Push con VAPID), aviso de prueba y preferencias (recordatorio, resultado). En iPhone solo con la app instalada (iOS 16.4+).
+- Envío solo en servidor: `src/features/notifications/send.ts` (`notifyUsers`) con `createServiceClient()` (`src/lib/supabase/admin.ts`, clave de servicio, ignora RLS: nunca en cliente). Respeta preferencias, deduplica con `notification_log` y borra suscripciones caducadas (404/410).
+- Resultado final: `after(() => sendFinalResult(id))` al finalizar (delegado) o al marcar finalizado (admin).
+- Cron diario `/api/cron/diario` (vercel.json, 22:00 UTC = 5 p. m. Panamá): recordatorios de los partidos de mañana + `close_expired_mvp_votes()`. Protegido con `Authorization: Bearer CRON_SECRET`. En el plan gratuito de Vercel los crons solo pueden ser diarios: las votaciones se cierran hasta un día después del plazo (o a mano desde el panel).
+- Los avisos solo llevan nombres de equipos, nunca datos de niños.
+- `web-push` v4 es ESM: usar imports con nombre (`import { sendNotification, setVapidDetails } from "web-push"`).
 
 ## Comandos
 
