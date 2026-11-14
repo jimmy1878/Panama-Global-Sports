@@ -61,7 +61,8 @@ export async function sendTestNotification(): Promise<PushResult> {
   try {
     const result = await sendTest(user.id);
     if ("reason" in result && result.reason) return { ok: false, error: result.reason };
-    if (!result.sent) return { ok: false, error: "No hay dispositivos activos. Activa los avisos primero." };
+    if (!result.devices) return { ok: false, error: "No hay dispositivos activos. Activa los avisos primero." };
+    if (!result.sent) return { ok: false, error: "Hay dispositivos registrados, pero el envío falló. Revisa la configuración del servidor." };
     return { ok: true, message: `Aviso de prueba enviado a ${result.sent} dispositivo(s).` };
   } catch {
     return { ok: false, error: "No se pudo enviar el aviso de prueba." };

@@ -110,7 +110,7 @@ export async function sendTest(userId: string) {
     url: "/avisos",
     tag: "prueba",
   });
-  return { sent };
+  return { sent, devices: subs.length };
 }
 
 /** Usuarios que siguen a alguno de estos equipos. */
