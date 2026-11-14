@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // Las fuentes de la tarjeta de resultado se leen del disco en tiempo de
+  // ejecución: hay que incluirlas en el paquete que se despliega.
+  outputFileTracingIncludes: {
+    "/partidos/\\[id\\]/tarjeta": ["assets/fonts/*.ttf"],
+  },
   experimental: {
     // Detecta cuando se pierde la conexión y reintenta navegaciones y acciones al volver (PWA).
     useOffline: true,

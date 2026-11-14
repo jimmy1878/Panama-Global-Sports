@@ -10,6 +10,7 @@ import { LiveRefresher } from "@/components/live/live-refresher";
 import { MvpVoteSection } from "@/features/family/sections";
 import { StatusBadge } from "@/features/league/components/match-list";
 import { getMatchDetail, isUuid, type MatchEvent, type Team } from "@/features/league/data";
+import { ShareCard } from "@/features/share/share-card";
 import { formatLongDay, formatTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Partido" };
@@ -88,6 +89,14 @@ async function MatchContent({ id }: { id: string }) {
           ) : null}
         </ul>
       </section>
+
+      {/* Tarjeta para redes: en cuanto hay marcador (en vivo o final) */}
+      {hasScore ? (
+        <ShareCard
+          matchId={match.id}
+          title={`${match.home.name} ${match.homeScore} – ${match.awayScore} ${match.away.name}`}
+        />
+      ) : null}
 
       {/* Votación de las familias (solo si la liga la usa y está abierta) */}
       {voting ? (

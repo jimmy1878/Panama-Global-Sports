@@ -360,6 +360,30 @@ export async function getMatchRosters(homeId: string, awayId: string) {
   return data.map((r) => ({ playerId: r.player_id, teamId: r.team_id, number: r.jersey_number, name: names.get(r.player_id) ?? "Jugador" }));
 }
 
+export type MatchScorer = { teamId: string; name: string; goals: number; minute: number | null };
+
+/**
+ * Goleadores de un partido, para la tarjeta de resultado.
+ * La vista `public_match_scorers` ya excluye en SQL las categorías en modo
+ * `team_stars` y solo expone "nombre + inicial": aquí no hay que filtrar nada.
+ */
+export async function getMatchScorers(matchId: string): Promise<MatchScorer[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("matches", `match-${matchId}`);
+
+  const { data, error } = await createPublicClient()
+    .from("public_match_scorers")
+    .select("team_id, display_name, goals, first_minute")
+    .eq("match_id", matchId);
+  if (error) fail("los goleadores", error);
+
+  return data
+    .filter((r) => r.team_id && r.display_name)
+    .map((r) => ({ teamId: r.team_id!, name: r.display_name!, goals: r.goals ?? 1, minute: r.first_minute }))
+    .sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999) || a.name.localeCompare(b.name, "es"));
+}
+
 // ---------------------------------------------------------------------------
 // Estadísticas
 // ---------------------------------------------------------------------------
