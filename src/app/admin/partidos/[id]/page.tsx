@@ -8,7 +8,7 @@ import { getMatchAdmin, getUsers, getVenues } from "@/features/admin/data";
 import { AdminForm, Field, Select, TextInput } from "@/features/admin/form";
 import { TeamSelect } from "@/features/admin/team-select";
 import { getCategories, getTeams, isUuid } from "@/features/league/data";
-import { assignOfficial, deleteMatch, removeOfficial, updateMatch } from "../actions";
+import { assignOfficial, closeVoting, deleteMatch, removeOfficial, updateMatch } from "../actions";
 
 export const metadata: Metadata = { title: "Editar partido" };
 
@@ -205,6 +205,20 @@ async function MatchAdmin({ id }: { id: string }) {
               )}
             </div>
           </Section>
+
+          {match.status === "finished" ? (
+            <Section title="Votación de las familias">
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="mb-3 text-sm text-muted">
+                  Si la liga usa votación, al vencer el plazo gana el más votado de cada equipo. Pulsa para procesarla (no hace nada si
+                  la votación sigue abierta o si el MVP lo elige el delegado).
+                </p>
+                <AdminForm action={closeVoting} submitLabel="Cerrar votación">
+                  <input type="hidden" name="id" value={match.id} />
+                </AdminForm>
+              </div>
+            </Section>
+          ) : null}
 
           <Section title="Eliminar partido">
             <div className="rounded-2xl border border-brand-red/30 bg-surface p-4">

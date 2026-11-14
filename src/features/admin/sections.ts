@@ -4,7 +4,7 @@ import { CalendarRange, Gauge, House, Layers, MapPin, Shield, Swords, UserCog } 
 export const ADMIN_SECTIONS = [
   { href: "/admin", label: "Resumen", icon: Gauge },
   { href: "/admin/temporadas", label: "Temporadas", icon: CalendarRange },
-  { href: "/admin/categorias", label: "Categorías", icon: Layers },
+  { href: "/admin/categorias", label: "Ligas y categorías", icon: Layers },
   { href: "/admin/equipos", label: "Equipos y jugadores", icon: Shield },
   { href: "/admin/partidos", label: "Partidos", icon: Swords },
   { href: "/admin/familias", label: "Familias", icon: House },

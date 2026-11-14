@@ -113,3 +113,13 @@ export async function removeOfficial(_prev: ActionState, formData: FormData): Pr
     return { ok: true, message: "Quitado." };
   });
 }
+
+/** Cierra la votación de las familias: gana el más votado de cada equipo (empate → decide el delegado). */
+export async function closeVoting(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const id = String(formData.get("id"));
+  return runAdmin(async (supabase) => {
+    check(await supabase.rpc("close_mvp_voting", { p_match_id: id }));
+    refreshPublic("matches", `match-${id}`);
+    return { ok: true, message: "Votación procesada. Revisa el MVP en la página del partido." };
+  });
+}

@@ -40,6 +40,7 @@ export type Match = {
   categoryId: string;
   startsAt: string;
   startedAt: string | null; // hora real de inicio (para el minuto en vivo)
+  finishedAt: string | null;
   matchday: number | null;
   status: MatchStatus;
   homeScore: number | null;
@@ -203,7 +204,7 @@ async function getPlayerNames(ids: string[]): Promise<Map<string, string>> {
 // ---------------------------------------------------------------------------
 // Partidos
 // ---------------------------------------------------------------------------
-const MATCH_SELECT = `id, category_id, starts_at, started_at, matchday, status, home_score, away_score,
+const MATCH_SELECT = `id, category_id, starts_at, started_at, finished_at, matchday, status, home_score, away_score,
   venue:venues(name),
   home:teams!matches_home_team_id_season_id_category_id_fkey(${TEAM_COLUMNS}),
   away:teams!matches_away_team_id_season_id_category_id_fkey(${TEAM_COLUMNS})`;
@@ -213,6 +214,7 @@ type MatchRow = {
   category_id: string;
   starts_at: string;
   started_at: string | null;
+  finished_at: string | null;
   matchday: number | null;
   status: MatchStatus;
   home_score: number | null;
@@ -228,6 +230,7 @@ function toMatch(m: MatchRow): Match {
     categoryId: m.category_id,
     startsAt: m.starts_at,
     startedAt: m.started_at,
+    finishedAt: m.finished_at,
     matchday: m.matchday,
     status: m.status,
     homeScore: m.home_score,
@@ -327,7 +330,34 @@ export async function getMatchDetail(matchId: string) {
   // MVP en todas las categorías (decisión 2026-11-13), también U6/U8.
   const mvpByTeam = Object.fromEntries(mvps.map((m) => [m.team_id, names.get(m.player_id) ?? null]));
 
-  return { match, category, timeline, mvpByTeam, chronicle: chronicle?.body ?? null };
+  // Votación MVP de las familias (si la liga la usa)
+  const { data: league } = await supabase
+    .from("categories")
+    .select("league:leagues(mvp_mode, mvp_vote_hours)")
+    .eq("id", match.categoryId)
+    .maybeSingle();
+  const voting =
+    league?.league?.mvp_mode === "parent_vote" && match.status === "finished" && match.finishedAt
+      ? { closesAt: new Date(new Date(match.finishedAt).getTime() + league.league.mvp_vote_hours * 3600_000).toISOString() }
+      : null;
+
+  return { match, category, timeline, mvpByTeam, chronicle: chronicle?.body ?? null, voting };
+}
+
+/** Planteles de los dos equipos de un partido (datos públicos: nombre + inicial). */
+export async function getMatchRosters(homeId: string, awayId: string) {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("teams", `team-${homeId}`, `team-${awayId}`);
+
+  const { data, error } = await createPublicClient()
+    .from("roster_entries")
+    .select("player_id, team_id, jersey_number")
+    .in("team_id", [homeId, awayId])
+    .order("jersey_number");
+  if (error) fail("los planteles", error);
+  const names = await getPlayerNames(data.map((r) => r.player_id));
+  return data.map((r) => ({ playerId: r.player_id, teamId: r.team_id, number: r.jersey_number, name: names.get(r.player_id) ?? "Jugador" }));
 }
 
 // ---------------------------------------------------------------------------

@@ -29,6 +29,13 @@ export async function getSeasons() {
   return data;
 }
 
+export async function getLeagues() {
+  const supabase = await adminClient();
+  const { data, error } = await supabase.from("leagues").select("id, name, mvp_mode, mvp_vote_hours").order("sort_order");
+  if (error) throw error;
+  return data;
+}
+
 export async function getVenues() {
   const supabase = await adminClient();
   const { data, error } = await supabase.from("venues").select("id, name, address, maps_url, is_active").order("name");

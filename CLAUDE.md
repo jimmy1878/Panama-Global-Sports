@@ -41,7 +41,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 2. ✅ Consulta pública: Inicio, Calendario, Equipos (+ detalle), Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
 3. ✅ Panel admin (`/admin`): temporadas, equipos (logo), jugadores (foto + consentimiento, borrado total), partidos y delegados, familias, usuarios y roles, canchas. Migración 7 (`admin_helpers`) aplicada.
 4. ✅ Marcador en vivo: consola del delegado en `/delegado` (iniciar, eventos con minuto, anular, asistencia, finalizar, MVP) + Realtime en la página pública del partido e Inicio.
-5. Cuenta de familia: hijos, consentimiento, equipos seguidos, voto MVP, estrellas.
+5. ✅ Cuenta de familia (`/familia`): hijos con estadísticas y próximo partido, consentimiento de foto, equipos seguidos (botón también en la página del equipo), voto MVP en la página del partido. Panel: MVP por liga (delegado o votación) y cierre manual de la votación.
 6. Notificaciones push (recordatorio y resultado final, Vercel Cron).
 7. Tarjetas de resultado para compartir (`next/og`).
 8. Crónica con la API de Claude.
@@ -140,6 +140,14 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Tiempo real: `<LiveRefresher matchId>` se suscribe a `matches`, `match_events` y `match_mvps` y hace `router.refresh()` (con espera para agrupar cambios). Inicio usa `<LiveRefresher delayMs={5000}>`. El minuto en vivo se calcula en el cliente desde `started_at` (`<LiveMinute>`).
 - El admin entra a cualquier marcador desde **Panel → Partidos → Abrir marcador**; en `/delegado` ve sus asignados + los de hoy + los en vivo.
 - El marcador nunca se escribe a mano en vivo: lo recalcula la BD desde los goles (autogol suma al rival). Errores = anular (`voided_at`), nunca borrar.
+
+## Cuenta de familia (fase 5)
+
+- `/familia`: datos en `src/features/family/data.ts` (sesión; RLS limita a los hijos de la familia). Acciones en `src/app/familia/actions.ts` (`runFamily`): consentimiento (`set_photo_consent`), seguir equipos (`team_follows`), voto (`cast_mvp_vote`).
+- Piezas con sesión dentro de páginas públicas en `src/features/family/sections.tsx` (`FollowTeamSection`, `MvpVoteSection`), siempre en `<Suspense>`.
+- Votación visible solo si la liga tiene `mvp_mode = parent_vote`, el partido terminó y no venció el plazo. Estados: ingresar / no elegible / ya votó / votar. Los votos son secretos (cada familia solo ve el suyo).
+- El cierre de votaciones es manual (Panel → Partidos → Cerrar votación) hasta que la fase 6 programe `close_expired_mvp_votes()`.
+- Si una cuenta no tiene hijos vinculados, `/familia` muestra su correo para que el admin la vincule.
 
 ## Comandos
 

@@ -7,6 +7,7 @@ import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { TeamCrest } from "@/components/ui/team-crest";
 import { LiveMinute } from "@/components/live/live-minute";
 import { LiveRefresher } from "@/components/live/live-refresher";
+import { MvpVoteSection } from "@/features/family/sections";
 import { StatusBadge } from "@/features/league/components/match-list";
 import { getMatchDetail, isUuid, type MatchEvent, type Team } from "@/features/league/data";
 import { formatLongDay, formatTime } from "@/lib/format";
@@ -33,7 +34,7 @@ async function MatchContent({ id }: { id: string }) {
   if (!isUuid(id)) notFound();
   const detail = await getMatchDetail(id);
   if (!detail) notFound();
-  const { match, category, timeline, mvpByTeam, chronicle } = detail;
+  const { match, category, timeline, mvpByTeam, chronicle, voting } = detail;
   const individual = category?.recognitionMode === "individual_ranking";
   const hasScore = match.homeScore !== null && match.awayScore !== null;
 
@@ -87,6 +88,13 @@ async function MatchContent({ id }: { id: string }) {
           ) : null}
         </ul>
       </section>
+
+      {/* Votación de las familias (solo si la liga la usa y está abierta) */}
+      {voting ? (
+        <Suspense fallback={null}>
+          <MvpVoteSection matchId={match.id} home={match.home} away={match.away} closesAt={voting.closesAt} />
+        </Suspense>
+      ) : null}
 
       {/* Jugador del partido (todas las categorías) */}
       {Object.keys(mvpByTeam).length ? (

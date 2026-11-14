@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ChevronLeft, Star } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { TeamCrest } from "@/components/ui/team-crest";
+import { FollowTeamSection } from "@/features/family/sections";
 import { MatchList } from "@/features/league/components/match-list";
 import {
   getCategories,
@@ -70,6 +71,11 @@ async function TeamContent({ id }: { id: string }) {
               {category.leagueName} · {category.code}
             </p>
           ) : null}
+          <div className="mt-3">
+            <Suspense fallback={<span className="block h-11" />}>
+              <FollowTeamSection teamId={team.id} />
+            </Suspense>
+          </div>
         </div>
       </header>
 
