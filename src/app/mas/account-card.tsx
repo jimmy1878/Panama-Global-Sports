@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, House, LogIn, LogOut, Radio, Settings } from "lucide-react";
+import { Bell, House, Images, LogIn, LogOut, Radio, Settings } from "lucide-react";
 import { getCurrentUser, ROLE_LABELS } from "@/lib/auth";
 import { signOutAction } from "../ingresar/actions";
 
@@ -50,6 +50,13 @@ export async function AccountCard() {
       >
         <House className="size-5" aria-hidden />
         Mi familia
+      </Link>
+      <Link
+        href="/galeria"
+        className="mt-3 flex h-12 items-center justify-center gap-2 rounded-xl border border-border font-semibold"
+      >
+        <Images className="size-5" aria-hidden />
+        Galería de fotos
       </Link>
       <Link
         href="/avisos"

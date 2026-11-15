@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:db": "node scripts/test-db.mjs",
     "test:rules": "node scripts/test-rules.mjs",
+    "test:media": "node scripts/test-media.mjs",
     "db:push": "node scripts/db-push.mjs",
     "db:types": "node scripts/db-types.mjs",
     "icons": "node scripts/generate-icons.mjs"

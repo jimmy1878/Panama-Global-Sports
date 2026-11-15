@@ -8,6 +8,7 @@ import { TeamCrest } from "@/components/ui/team-crest";
 import { LiveMinute } from "@/components/live/live-minute";
 import { LiveRefresher } from "@/components/live/live-refresher";
 import { MvpVoteSection } from "@/features/family/sections";
+import { MatchGallerySection } from "@/features/gallery/sections";
 import { StatusBadge } from "@/features/league/components/match-list";
 import { getMatchDetail, isUuid, type MatchEvent, type Team } from "@/features/league/data";
 import { ShareCard } from "@/features/share/share-card";
@@ -130,6 +131,11 @@ async function MatchContent({ id }: { id: string }) {
           <p className="rounded-2xl border border-border bg-surface p-5 leading-relaxed">{chronicle}</p>
         </Section>
       ) : null}
+
+      {/* Galería: solo familias de la liga; la subida, para delegados y familias del partido */}
+      <Suspense fallback={<Skeleton className="h-40" />}>
+        <MatchGallerySection matchId={match.id} />
+      </Suspense>
 
       {/* Momentos del partido */}
       <Section title="Momentos del partido">

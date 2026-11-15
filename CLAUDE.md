@@ -52,7 +52,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 7. ✅ Tarjetas de resultado para compartir (`next/og`, Instagram 1080×1350 y WhatsApp 1080×1080) — 2026-11-14.
 7b. ✅ **Reestructuración al modelo de torneos** (migración 8, `tournament_model`) — 2026-11-15. Sustituye la temporada única por organización → liga → circuito → torneo → categoría. Aplicada en Supabase y desplegada.
 8. ✅ Crónica con la API de Claude (`/admin/cronicas`) — 2026-11-15. Construida y desplegada, pero APAGADA hasta que haya `ANTHROPIC_API_KEY` con saldo.
-9. Galería (subida, procesamiento, etiquetado, revisión) — agrupada por **jornada**, no por partido.
+9. ◐ Galería de FOTOS (`/galeria`, subida en la página del partido, revisión en `/admin/galeria`) — 2026-11-15. Agrupada por **jornada**. **El video queda fuera**: sigue sin decidirse cómo procesarlo.
 10. Certificados PDF al finalizar cada torneo.
 Futuro: **patrocinios** (el dueño los quiere pronto: es la fuente principal de ingresos), álbum de figuritas y fantasy.
 
@@ -171,6 +171,16 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Si un aviso falla con 401/403, la pareja VAPID del servidor no coincide con la de la suscripción. Subir variables a Vercel sin copiar a mano: `npx vercel@65.16.0 env add NOMBRE --environment production --force --yes` con el valor por stdin, y luego `redeploy` (las variables solo aplican tras desplegar).
 - `web-push` v4 es ESM: usar imports con nombre (`import { sendNotification, setVapidDetails } from "web-push"`).
 
+## Galería de fotos (fase 9)
+
+- Flujo: el navegador sube el ORIGINAL a `media-uploads/{user_id}/…` (cuarentena, nadie la lee desde la app) → la acción `registerUpload` crea la fila en `processing` **con la sesión del usuario**, para que RLS compruebe `can_upload_media` → `processMedia()` (servidor, clave de servicio) quita EXIF/GPS con sharp, comprime a WebP (1600 px y miniatura de 480), escribe en `match-media` y pasa la fila a `pending_review` → un admin aprueba en `/admin/galeria`.
+- **El original no pasa por la acción de servidor** a propósito: una foto de celular supera el límite de 4 MB. Por eso la cuarentena.
+- Nada de lo que se ve sale de rutas públicas: siempre URLs firmadas de 1 h, y quién ve qué lo decide `can_view_media` en la BD, no el código.
+- El bloqueo por consentimiento lo impone el trigger `guard_media_status`: si en la foto hay un niño sin `photo_consent` y sin `redacted`, **no se puede aprobar**. El admin recorta la foto y marca "Ya lo recorté". Si un padre retira el consentimiento después, la foto vuelve sola a `media_review_queue`.
+- Galería pública en `/galeria` agrupada por **jornada** (`matchdays`), no por partido: es como la vive una familia. Solo con sesión.
+- **Video: fuera de alcance por ahora.** `sharp` solo procesa imágenes; el video necesita ffmpeg o un servicio externo y las funciones de Vercel tienen límites. La subida rechaza videos con un mensaje claro y `processMedia` marca como rechazado cualquier `kind <> 'photo'`. Decidir antes de retomarlo.
+- Pruebas: `npm run test:media` comprueba con el mismo pipeline que una foto con GPS sale sin un solo metadato. Es la garantía de privacidad de esta fase: si se toca `processMedia`, correrla.
+
 ## Crónica automática (fase 8)
 
 - Al finalizar un partido, `after(() => generateChronicle(id))` (delegado y admin) pide el texto a la API de Claude y lo guarda como **borrador** en `match_chronicles`. Nunca publica: eso lo hace un admin en `/admin/cronicas`.
@@ -191,6 +201,7 @@ npm run build   # build de producción (correr antes de dar algo por terminado)
 npm run lint
 npm run test:db # pruebas de la base de datos (PGlite simula Supabase)
 npm run test:rules # reglas de las crónicas (privacidad y longitud)
+npm run test:media # el procesado de fotos borra EXIF/GPS
 npm run icons   # regenera los iconos de la PWA
 npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase login` una vez en tu terminal)
 ```
