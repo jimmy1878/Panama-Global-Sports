@@ -17,7 +17,7 @@ export function Section({
   return (
     <section className={className}>
       <div className="mb-3 flex items-end justify-between gap-4">
-        <h2 className="text-lg font-bold md:text-xl">{title}</h2>
+        <h2 className="font-display text-xl tracking-wide uppercase md:text-2xl">{title}</h2>
         {href ? (
           <Link href={href} className="flex items-center text-sm font-medium text-brand-blue">
             {linkLabel}
@@ -45,7 +45,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 export function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-4 md:mb-6">
-      <h1 className="text-2xl font-bold md:text-3xl">{title}</h1>
+      <h1 className="font-display text-3xl tracking-wide uppercase md:text-4xl">{title}</h1>
       {subtitle ? <p className="mt-1 text-sm text-muted md:text-base">{subtitle}</p> : null}
     </div>
   );

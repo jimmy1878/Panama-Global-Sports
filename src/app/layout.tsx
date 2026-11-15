@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Lilita_One } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
@@ -10,6 +10,13 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+/** Titulares y marcadores: la tipografía deportiva del mockup. */
+const lilita = Lilita_One({
+  variable: "--font-lilita",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -32,14 +39,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#005293",
+  themeColor: "#010f2a",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es-PA"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${lilita.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <AppShell>{children}</AppShell>

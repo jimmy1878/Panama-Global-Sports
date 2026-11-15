@@ -234,7 +234,13 @@ No es la versión desktop encogida. Cada vista se diseña **dos veces**:
 - Cuando la estructura cambia (tarjetas vs. tabla), renderizar **dos componentes** (`md:hidden` / `hidden md:block`) en lugar de forzar uno solo con muchos breakpoints.
 - La navegación está definida una sola vez en `src/components/layout/nav-items.ts`; móvil y desktop la consumen.
 - Respetar `env(safe-area-inset-bottom)` en el menú inferior (iPhone).
-- Colores de marca como tokens en `globals.css` (`brand-blue`, `brand-red`, inspirados en la bandera de Panamá). No usar colores hex sueltos en componentes.
+- **Identidad (2026-11-15)**: navy y dorado, muestreados del logotipo. Tokens en `globals.css`, nunca hex sueltos en componentes:
+  - `navy` `#010f2a` y `navy-soft` `#001743` — fondo de marca. La clase `bg-brand-gradient` reproduce el degradado que el logo trae debajo de sí: se usa en el header, el menú inferior, el hero y las piezas de marca.
+  - `gold` `#dfaf42` y `gold-bright` `#fff08b` — llamadas a la acción y texto sobre navy.
+  - `boys` `#29abe2` y `girls` `#ed1e79` — color de cada liga; `fair` `#8cc63f` para fair play; `live` `#ed1e79` para "en vivo".
+  - `brand-blue` `#0a2250` (botones y enlaces sobre fondo claro) y `brand-red` `#d21034` (solo errores y acciones destructivas).
+- Tipografía: **Lilita One** (`font-display`) en títulos y marcadores, en mayúsculas; Geist para el resto.
+- Logotipo en `public/brand/`: `logo.webp` (bloque completo, desktop) e `isotipo.webp` (solo el globo, móvil). **Traen el fondo navy difuminado con el que fueron diseñados**: solo se ven bien sobre `bg-brand-gradient`, nunca sobre blanco. Si hace falta una versión para fondo claro, hay que pedirla al diseñador.
 
 ## Privacidad: los jugadores son menores de edad (PRIORIDAD)
 

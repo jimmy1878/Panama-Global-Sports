@@ -17,7 +17,7 @@ export function BottomNavBar({ pathname }: { pathname?: string }) {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="bg-brand-gradient fixed inset-x-0 bottom-0 z-40 border-t border-gold/25 pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <ul className="grid grid-cols-5">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -28,7 +28,7 @@ export function BottomNavBar({ pathname }: { pathname?: string }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
-                  active ? "text-brand-blue" : "text-muted active:text-foreground"
+                  active ? "text-gold" : "text-white/70 active:text-white"
                 }`}
               >
                 <Icon className="size-6" strokeWidth={active ? 2.4 : 1.8} aria-hidden />

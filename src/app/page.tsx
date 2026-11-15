@@ -25,11 +25,11 @@ export default function Home() {
 async function TournamentsHero() {
   const tournaments = await getCurrentTournaments();
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-brand-blue p-6 text-white md:p-10">
+    <section className="bg-brand-gradient relative overflow-hidden rounded-3xl border border-gold/25 p-6 text-white md:p-10">
       <div aria-hidden className="absolute -right-10 -bottom-16 size-48 rounded-full bg-white/10 md:size-72" />
-      <div aria-hidden className="absolute top-6 right-6 h-1.5 w-16 rounded-full bg-brand-red md:w-24" />
-      <p className="text-sm font-medium text-white/80">Ligas infantiles de fútbol</p>
-      <h1 className="mt-1 text-2xl font-black md:text-4xl">Panama Global Sports</h1>
+      <div aria-hidden className="absolute top-6 right-6 h-1.5 w-16 rounded-full bg-gold md:w-24" />
+      <p className="text-sm font-medium tracking-wide text-gold uppercase">Ligas infantiles de fútbol</p>
+      <h1 className="mt-1 font-display text-3xl tracking-wide uppercase md:text-5xl">Panama Global Sports</h1>
       {/* Pueden estar varios torneos en curso a la vez (Academias y Escolares) */}
       {tournaments.length ? (
         <ul className="mt-3 space-y-1 text-sm text-white/90 md:text-base">
@@ -41,7 +41,7 @@ async function TournamentsHero() {
         </ul>
       ) : null}
       <div className="mt-5 flex gap-3">
-        <Link href="/calendario" className="flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-brand-blue">
+        <Link href="/calendario" className="flex h-11 items-center gap-2 rounded-xl bg-gold px-4 text-sm font-bold text-navy">
           <CalendarDays className="size-4" aria-hidden />
           Calendario
         </Link>

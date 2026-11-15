@@ -58,17 +58,17 @@ async function MatchContent({ id }: { id: string }) {
           <div className="text-center">
             {hasScore ? (
               <>
-                <p className="text-4xl font-black tabular-nums md:text-6xl">
+                <p className="font-display text-5xl tabular-nums md:text-7xl">
                   {match.homeScore}
                   <span className="mx-1 text-muted md:mx-3">–</span>
                   {match.awayScore}
                 </p>
                 {match.status === "live" ? (
-                  <LiveMinute startedAt={match.startedAt} className="mt-1 block text-lg font-bold text-brand-red md:text-xl" />
+                  <LiveMinute startedAt={match.startedAt} className="mt-1 block text-lg font-bold text-live md:text-xl" />
                 ) : null}
               </>
             ) : (
-              <p className="text-2xl font-black text-brand-blue md:text-3xl">{formatTime(match.startsAt)}</p>
+              <p className="font-display text-3xl text-brand-blue md:text-4xl">{formatTime(match.startsAt)}</p>
             )}
           </div>
           <TeamSide team={match.away} />

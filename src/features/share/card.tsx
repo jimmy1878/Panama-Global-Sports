@@ -11,8 +11,11 @@
  * Esta plantilla nunca debe recibir ni mostrar otro dato de un menor.
  */
 
-const BRAND_BLUE = "#005293";
-const BRAND_RED = "#d21034";
+// Muestreados del logotipo: navy del fondo y dorado del texto.
+const NAVY = "#010F2A";
+const NAVY_SOFT = "#001743";
+const GOLD = "#DFAF42";
+const LIVE = "#ED1E79";
 
 export const CARD_FORMATS = {
   // Instagram (feed y stories)
@@ -84,7 +87,7 @@ export function ResultCard(data: CardData) {
         fontFamily: "Geist",
         fontWeight: 500,
         color: "#ffffff",
-        backgroundImage: `linear-gradient(160deg, #002e5c 0%, ${BRAND_BLUE} 58%, #0a6cb8 100%)`,
+        backgroundImage: `linear-gradient(160deg, ${NAVY} 0%, #021437 55%, ${NAVY_SOFT} 100%)`,
       }}
     >
       {/* Franja superior con los colores de los dos equipos */}
@@ -148,9 +151,9 @@ export function ResultCard(data: CardData) {
 
         {/* Marca */}
         <div style={{ display: "flex", alignItems: "center", marginTop: 28 }}>
-          <div style={{ display: "flex", width: 22, height: 22, backgroundColor: BRAND_RED, marginRight: 8 }} />
+          <div style={{ display: "flex", width: 22, height: 22, backgroundColor: GOLD, marginRight: 8 }} />
           <div style={{ display: "flex", width: 22, height: 22, backgroundColor: "#ffffff", marginRight: 16 }} />
-          <div style={{ display: "flex", fontSize: 32, fontWeight: 900, letterSpacing: 2 }}>PANAMA GLOBAL SPORTS</div>
+          <div style={{ display: "flex", fontSize: 32, fontWeight: 900, letterSpacing: 2, color: GOLD }}>PANAMA GLOBAL SPORTS</div>
         </div>
       </div>
     </div>
@@ -176,7 +179,7 @@ function StatusChip({ status }: { status: CardData["status"] }) {
         letterSpacing: 2,
         padding: "10px 24px",
         borderRadius: 999,
-        backgroundColor: status === "live" ? BRAND_RED : "rgba(255,255,255,0.18)",
+        backgroundColor: status === "live" ? LIVE : "rgba(255,255,255,0.18)",
       }}
     >
       {label}

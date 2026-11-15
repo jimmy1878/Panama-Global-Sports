@@ -9,7 +9,7 @@ import { Logo } from "./logo";
  */
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+    <header className="bg-brand-gradient sticky top-0 z-40 border-b border-gold/25 pt-[env(safe-area-inset-top)] text-white">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 md:h-16 md:px-6">
         <Logo />
         <div className="flex items-center gap-4">

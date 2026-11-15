@@ -8,9 +8,23 @@
   --surface-muted: #eef1f5;
   --border: #e2e8f0;
   --muted: #64748b;
-  /* Inspirados en la bandera de Panamá */
-  --brand-blue: #005293;
-  --brand-red: #d21034;
+
+  /* Marca: muestreados del logotipo de Panama Global Sports */
+  --navy: #010f2a; /* fondo del header y de las piezas de marca */
+  --navy-soft: #001743; /* el navy se aclara hacia abajo, como en el logo */
+  --gold: #dfaf42; /* dorado del logotipo */
+  --gold-bright: #fff08b; /* su brillo, para detalles y textos sobre navy */
+
+  /* Azul de marca para botones y enlaces: el navy del logo, un punto más claro
+     para que no se lea como negro sobre fondo blanco. */
+  --brand-blue: #0a2250;
+  --brand-red: #d21034; /* errores y acciones destructivas */
+
+  /* Cada liga tiene su color; el verde es del fair play */
+  --boys: #29abe2;
+  --girls: #ed1e79;
+  --fair: #8cc63f;
+  --live: #ed1e79; /* "en vivo": el magenta se ve sobre navy y sobre blanco */
 }
 
 @theme inline {
@@ -22,8 +36,23 @@
   --color-muted: var(--muted);
   --color-brand-blue: var(--brand-blue);
   --color-brand-red: var(--brand-red);
+  --color-navy: var(--navy);
+  --color-navy-soft: var(--navy-soft);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-boys: var(--boys);
+  --color-girls: var(--girls);
+  --color-fair: var(--fair);
+  --color-live: var(--live);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-lilita);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Degradado de marca: el mismo que trae el logo debajo de sí. Se usa en el
+   header, en el pie y en las piezas que llevan la marca. */
+.bg-brand-gradient {
+  background-image: linear-gradient(160deg, var(--navy) 0%, #021437 55%, var(--navy-soft) 100%);
 }
 
 body {

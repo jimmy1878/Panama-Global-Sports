@@ -9,7 +9,7 @@ export function StatusBadge({ match }: { match: Match }) {
   switch (match.status) {
     case "live":
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-brand-red px-2 py-0.5 text-[11px] font-bold text-white">
+        <span className="inline-flex items-center gap-1 rounded-full bg-live px-2 py-0.5 text-[11px] font-bold text-white">
           <span className="size-1.5 animate-pulse rounded-full bg-white" aria-hidden />
           EN VIVO
           <LiveMinute startedAt={match.startedAt} prefix="· " />
