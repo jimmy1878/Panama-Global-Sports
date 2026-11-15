@@ -7,11 +7,17 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 ## Contexto del negocio
 
 - Primer deporte: **fútbol**. La arquitectura debe soportar otros deportes después (no asumir fútbol en el modelo de datos).
-- Ligas actuales:
-  - **Boys Champion League**: U6, U8, U10, U12, U14
-  - **Girls Champion League**: U8, U10, U12, U14, U17
+- Estructura real (especificación del dueño, 2026-11-14): **organización → liga → circuito → torneo → categoría**.
+  - **Organización**: Panama Global Sports (azul marino `#1B1464`, amarillo `#FFFF00`).
+  - **Ligas**: **Boys Champions League** (celeste `#29ABE2`) y **Girls Champions League** (magenta `#ED1E79`).
+  - **Circuitos**: cada liga se juega en **Academias** y **Escolares** ("Academy/School Edition", sin logo propio).
+  - **Tipos de torneo**: **Apertura** y **Clausura** en los dos circuitos; **Copa de Navidad** solo en Academias, sin apertura ni clausura. La BD impone la combinación válida.
+  - **Categorías**: Boys U6–U14, Girls U8–U17.
+- **Pueden jugarse dos torneos de la misma liga a la vez** (Academias y Escolares). A propósito no hay índice único sobre el estado: se intenta que no coincidan, pero no se bloquea.
+- **La temporada es el año vigente** (`tournaments.year`, `current_season()`). No hay tabla de temporadas. Es la unidad de las exclusividades anuales de patrocinio.
 - Cada categoría: **6 equipos** de **12 a 18 jugadores**.
-- **5 temporadas por año**. Los rosters cambian por temporada: un jugador pertenece a un equipo *en una temporada*, no de forma permanente.
+- Los rosters cambian por torneo: un jugador pertenece a un equipo **en un torneo**, no de forma permanente. Un niño puede jugar a la vez en su academia y en su colegio, que son torneos distintos.
+- Al finalizar, un torneo pasa al **historial**.
 
 ## Alcance funcional (fase actual)
 
@@ -30,7 +36,7 @@ Plataforma web para ligas deportivas infantiles en Panamá. Interfaz y contenido
 6. **Galería por partido** (fotos y videos ≤ 30 s, comprimidos). Suben admins, delegados asignados y familias con hijos en el partido. Flujo: el original va al bucket de cuarentena `media-uploads/{user_id}/…` → el **servidor** elimina EXIF/GPS, comprime y escribe en `match-media` (`status = pending_review`) → un **admin** aprueba o rechaza. Cada archivo lleva etiquetados los jugadores (`media_tags`); si alguno **no tiene consentimiento de foto**, la BD **impide aprobar** hasta que el admin lo recorte/difumine (`redacted = true`). Si un padre retira el consentimiento después, el contenido se oculta al instante y vuelve a `media_review_queue`. Solo lo ven **familias registradas de la liga** (y admin), con **URLs firmadas**.
 7. **Tarjeta de resultado** para Instagram (1080×1350) y WhatsApp (1080×1080): logos, colores, marcador, goleadores (`public_match_scorers`, solo nombre + inicial) y marca Panama Global Sports. Imagen generada en servidor con `next/og` (`ImageResponse`). En U6/U8 sin goleadores (la vista ya no los devuelve). Botón de compartir con Web Share API (`navigator.share` con archivo), con descarga como alternativa.
 8. **Crónica automática** con la API de Claude (`@anthropic-ai/sdk`, modelo `claude-opus-5-5`, solo servidor, `ANTHROPIC_API_KEY` en variables de entorno). Entrada: eventos del partido (sin datos privados). Reglas: tono siempre positivo y celebratorio, nunca mencionar errores ni criticar a un niño, solo nombre + inicial, **80–120 palabras**, español; en U6/U8 centrada en el equipo, sin destacar individuos. Se guarda como **borrador** en `match_chronicles`; el admin la edita y la publica. Validar en código el conteo de palabras y que no aparezcan apellidos completos antes de guardar.
-9. **Certificado de temporada en PDF** por jugador al cerrar la temporada (`seasons.closed_at`): nombre, equipo, categoría, temporada y estadísticas (partidos jugados, goles, asistencias, MVPs, estrellas). En U6/U8: participación y valores, **sin números individuales** (la vista devuelve `null`). Solo lo descarga la familia vinculada (vista `my_family_season_certificates`).
+9. **Certificado en PDF** por jugador al finalizar un torneo (`tournaments.status = 'finalizado'`): nombre, equipo, categoría, temporada y estadísticas (partidos jugados, goles, asistencias, MVPs, estrellas). En U6/U8: participación y valores, **sin números individuales** (la vista devuelve `null`). Solo lo descarga la familia vinculada (vista `my_family_tournament_certificates`, con el año de la temporada).
 
 ## Hoja de ruta (orden aprobado el 2026-11-13)
 
@@ -39,27 +45,33 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 0. ✅ Base de datos aplicada en Supabase (6 migraciones + seed + usuario admin) — 2026-11-13.
 1. ✅ Fundamentos: conexión Supabase, login, refresco de sesión en `src/proxy.ts`, PWA instalable. Tipos generados desde Supabase.
 2. ✅ Consulta pública: Inicio, Calendario, Equipos (+ detalle), Estadísticas (posiciones, líderes, estrellas U6/U8), página de partido.
-3. ✅ Panel admin (`/admin`): temporadas, equipos (logo), jugadores (foto + consentimiento, borrado total), partidos y delegados, familias, usuarios y roles, canchas. Migración 7 (`admin_helpers`) aplicada.
+3. ✅ Panel admin (`/admin`): torneos, equipos (logo), jugadores (foto + consentimiento, borrado total), partidos y delegados, familias, usuarios y roles, canchas. Migración 7 (`admin_helpers`) aplicada.
 4. ✅ Marcador en vivo: consola del delegado en `/delegado` (iniciar, eventos con minuto, anular, asistencia, finalizar, MVP) + Realtime en la página pública del partido e Inicio.
 5. ✅ Cuenta de familia (`/familia`): hijos con estadísticas y próximo partido, consentimiento de foto, equipos seguidos (botón también en la página del equipo), voto MVP en la página del partido. Panel: MVP por liga (delegado o votación) y cierre manual de la votación.
 6. ✅ Notificaciones push (`/avisos`, resultado final al terminar, cron diario con recordatorios y cierre de votaciones). Desplegado en Vercel: https://panama-global-sports.vercel.app — 2026-11-14.
-7. Tarjetas de resultado para compartir (`next/og`).
+7. ✅ Tarjetas de resultado para compartir (`next/og`, Instagram 1080×1350 y WhatsApp 1080×1080) — 2026-11-14.
+7b. ✅ **Reestructuración al modelo de torneos** (migración 8, `tournament_model`) — 2026-11-15. Sustituye la temporada única por organización → liga → circuito → torneo → categoría. Aplicada en Supabase y desplegada.
 8. Crónica con la API de Claude.
-9. Galería (subida, procesamiento, etiquetado, revisión).
-10. Certificados PDF de temporada.
-Futuro: álbum de figuritas y fantasy.
+9. Galería (subida, procesamiento, etiquetado, revisión) — agrupada por **jornada**, no por partido.
+10. Certificados PDF al finalizar cada torneo.
+Futuro: **patrocinios** (el dueño los quiere pronto: es la fuente principal de ingresos), álbum de figuritas y fantasy.
 
 Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
-Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo).
+Decisión 2026-11-15: la temporada es el año vigente (dueño), y el modelo pasa a torneos.
+Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); rutas públicas nuevas (`/ligas/:liga/:torneo/:categoria`, historial) y colores de marca en la interfaz, que hoy siguen siendo los de la bandera; el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
 Ideas pospuestas: reloj del partido guardado en la BD con botones "Medio tiempo / Reanudar" (hoy el minuto corre en tiempo real desde el inicio y el ajuste −/+ del delegado es local y el público no lo ve).
 
 ### Base de datos (`supabase/migrations/`)
 
 ```
-sports → leagues (mvp_mode) → categories (recognition_mode)     seasons (5/año, una is_current)
-teams (season × category; colores, logo_path)
-players (privada) ← roster_entries (player × team × season; número, posición)
-matches (season, category, home/away, venue, starts_at, status, marcador, started_at, finished_at)
+organizations → leagues (mvp_mode, colores) → categories (recognition_mode)
+circuits (academias | escolares) · tournament_types (apertura | clausura | copa-navidad)
+tournament_type_circuits (combinaciones válidas: Navidad solo en Academias)
+tournaments (league × circuit × type × year; slug, fechas, status) → tournament_categories
+matchdays (tournament × número; agrupa partidos y, en la fase 9, galerías)
+teams (tournament × category; colores, logo_path, club_name)
+players (privada) ← roster_entries (player × team × tournament; número, posición)
+matches (tournament, category, matchday, home/away, venue, starts_at, status, marcador)
 match_events (match, team, player, event_type, minute, voided_at) → event_types.points (≥ 0)
 match_mvps (match × team) · mvp_votes (match × family)
 profiles (role: admin | delegate | parent) · families · family_members · family_players · match_officials
@@ -67,9 +79,9 @@ team_follows · notification_preferences · push_subscriptions · notification_l
 match_attendance (partidos jugados) · media_items → media_tags · match_chronicles
 ```
 
-- **Público lee**: `sports, leagues, categories, seasons, venues, teams, roster_entries, matches, match_attendance, event_types, match_events, match_mvps`, crónicas publicadas y las vistas `public_players`, `standings`, `scoring_events`, `player_season_stats`, `season_leaders`, `team_season_recognitions`, `public_match_scorers`.
+- **Público lee**: `sports, organizations, leagues, circuits, tournament_types, tournament_type_circuits, tournaments, tournament_categories, categories, matchdays, venues, teams, roster_entries, matches, match_attendance, event_types, match_events, match_mvps`, crónicas publicadas y las vistas `public_players`, `standings`, `scoring_events`, `player_season_stats`, `season_leaders`, `team_season_recognitions`, `public_match_scorers`.
 - **Solo familias de la liga (y admin)**: galería aprobada (`media_items`, bucket `match-media`).
-- **Solo la familia del niño (y admin)**: `my_family_player_stars`, `my_family_season_certificates`, `mvp_votes` de su familia, datos completos en `players`.
+- **Solo la familia del niño (y admin)**: `my_family_player_stars`, `my_family_tournament_certificates`, `mvp_votes` de su familia, datos completos en `players`.
 - **Nunca leer `players` desde el público**: usar `public_players` (nombre + inicial, foto solo con consentimiento).
 - **Escritura**:
   - admin: todo.
