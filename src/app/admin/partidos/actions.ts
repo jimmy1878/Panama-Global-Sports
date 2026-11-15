@@ -28,16 +28,43 @@ function toRow(m: z.infer<typeof matchSchema>) {
     home_team_id: m.home_team_id,
     away_team_id: m.away_team_id,
     venue_id: m.venue_id || null,
-    matchday: m.matchday === "" ? null : m.matchday,
   };
 }
 
+/**
+ * La jornada ya no es un número en el partido, sino una fila de `matchdays`.
+ * El admin sigue escribiendo el número: aquí se busca la jornada del torneo y,
+ * si todavía no existe, se crea.
+ */
+type Supabase = Parameters<Parameters<typeof runAdmin>[0]>[0];
+
+async function resolveMatchdayId(
+  supabase: Supabase,
+  tournamentId: string,
+  number: number | "",
+): Promise<string | null> {
+  if (number === "") return null;
+  const existing = check(
+    await supabase.from("matchdays").select("id").eq("tournament_id", tournamentId).eq("number", number).maybeSingle(),
+  );
+  if (existing) return existing.id;
+  const created = check(
+    await supabase.from("matchdays").insert({ tournament_id: tournamentId, number }).select("id").single(),
+  );
+  return created.id;
+}
+
 export async function createMatch(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = parseForm(matchSchema.and(z.object({ season_id: z.uuid(), category_id: z.uuid() })), formData);
+  const parsed = parseForm(matchSchema.and(z.object({ tournament_id: z.uuid(), category_id: z.uuid() })), formData);
   if (parsed.errors) return parsed.errors;
-  const { season_id, category_id } = parsed.data;
+  const { tournament_id, category_id } = parsed.data;
   return runAdmin(async (supabase) => {
-    check(await supabase.from("matches").insert({ ...toRow(parsed.data), season_id, category_id }));
+    const matchday_id = await resolveMatchdayId(supabase, tournament_id, parsed.data.matchday);
+    check(
+      await supabase
+        .from("matches")
+        .insert({ ...toRow(parsed.data), tournament_id, category_id, matchday_id }),
+    );
     refreshPublic("matches");
     return { ok: true, message: "Partido programado." };
   });
@@ -62,15 +89,19 @@ export async function updateMatch(_prev: ActionState, formData: FormData): Promi
     return { error: "Para marcarlo como finalizado escribe el resultado.", fieldErrors: { home_score: ["Requerido"] } };
   }
   return runAdmin(async (supabase) => {
-    const current = check(await supabase.from("matches").select("status, finished_at").eq("id", m.id).single());
+    const current = check(
+      await supabase.from("matches").select("status, finished_at, tournament_id").eq("id", m.id).single(),
+    );
     if (current.status === "live" && m.status !== "finished") {
       return { error: "El partido está en vivo: lo controla el delegado desde el marcador." };
     }
+    const matchday_id = await resolveMatchdayId(supabase, current.tournament_id, m.matchday);
     check(
       await supabase
         .from("matches")
         .update({
           ...toRow(m),
+          matchday_id,
           status: m.status,
           home_score: finished ? Number(m.home_score) : null,
           away_score: finished ? Number(m.away_score) : null,

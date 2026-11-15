@@ -6,7 +6,7 @@ import { EmptyState, PageTitle, Section, Skeleton } from "@/components/ui/sectio
 import { TeamCrest } from "@/components/ui/team-crest";
 import { AdminForm, Field, TextInput } from "@/features/admin/form";
 import { CategoryPicker } from "@/features/league/components/category-picker";
-import { getCategories, getCurrentSeason, getTeams, resolveCategory } from "@/features/league/data";
+import { getCategories, getTeams, resolveCategory, resolveTournament } from "@/features/league/data";
 import { createTeam } from "./actions";
 
 export const metadata: Metadata = { title: "Equipos y jugadores" };
@@ -17,17 +17,20 @@ export default function TeamsAdminPage({ searchParams }: PageProps<"/admin/equip
       <PageTitle title="Equipos y jugadores" subtitle="Elige una categoría. Entra a un equipo para editar su plantel." />
       <Suspense fallback={<Skeleton className="h-96" />}>
         {searchParams.then((sp) => (
-          <TeamsAdmin cat={sp.cat} />
+          <TeamsAdmin cat={sp.cat} torneo={sp.torneo} />
         ))}
       </Suspense>
     </div>
   );
 }
 
-async function TeamsAdmin({ cat }: { cat: string | string[] | undefined }) {
-  const [season, categories, category] = await Promise.all([getCurrentSeason(), getCategories(), resolveCategory(cat)]);
-  if (!season || !category) return <EmptyState>Primero marca una temporada como actual.</EmptyState>;
-  const teams = (await getTeams(season.id)).filter((t) => t.categoryId === category.id);
+async function TeamsAdmin({ cat, torneo }: { cat: string | string[] | undefined; torneo: string | string[] | undefined }) {
+  const [categories, category] = await Promise.all([getCategories(), resolveCategory(cat)]);
+  if (!category) return <EmptyState>Todavía no hay categorías configuradas.</EmptyState>;
+
+  const tournament = await resolveTournament(category.id, torneo);
+  if (!tournament) return <EmptyState>Esta categoría todavía no está en ningún torneo.</EmptyState>;
+  const teams = (await getTeams(tournament.id)).filter((t) => t.categoryId === category.id);
 
   return (
     <>
@@ -57,7 +60,7 @@ async function TeamsAdmin({ cat }: { cat: string | string[] | undefined }) {
         <Section title="Nuevo equipo">
           <div className="rounded-2xl border border-border bg-surface p-4">
             <AdminForm action={createTeam} submitLabel="Crear equipo" resetOnSuccess>
-              <input type="hidden" name="season_id" value={season.id} />
+              <input type="hidden" name="tournament_id" value={tournament.id} />
               <input type="hidden" name="category_id" value={category.id} />
               <input type="hidden" name="category_code" value={category.code} />
               <Field name="name" label="Nombre">

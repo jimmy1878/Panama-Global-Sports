@@ -8,7 +8,7 @@ import { AdminForm, Field, Select, TextInput } from "@/features/admin/form";
 import { TeamSelect } from "@/features/admin/team-select";
 import { CategoryPicker } from "@/features/league/components/category-picker";
 import { StatusBadge } from "@/features/league/components/match-list";
-import { getCategories, getCurrentSeason, getMatches, getTeams, resolveCategory } from "@/features/league/data";
+import { getCategories, getMatches, getTeams, resolveCategory, resolveTournament } from "@/features/league/data";
 import { formatDay, formatTime } from "@/lib/format";
 import { createMatch } from "./actions";
 
@@ -20,20 +20,23 @@ export default function MatchesAdminPage({ searchParams }: PageProps<"/admin/par
       <PageTitle title="Partidos" subtitle="Programa partidos y asigna delegados o árbitros." />
       <Suspense fallback={<Skeleton className="h-96" />}>
         {searchParams.then((sp) => (
-          <MatchesAdmin cat={sp.cat} />
+          <MatchesAdmin cat={sp.cat} torneo={sp.torneo} />
         ))}
       </Suspense>
     </div>
   );
 }
 
-async function MatchesAdmin({ cat }: { cat: string | string[] | undefined }) {
-  const [season, categories, category] = await Promise.all([getCurrentSeason(), getCategories(), resolveCategory(cat)]);
-  if (!season || !category) return <EmptyState>Primero marca una temporada como actual.</EmptyState>;
+async function MatchesAdmin({ cat, torneo }: { cat: string | string[] | undefined; torneo: string | string[] | undefined }) {
+  const [categories, category] = await Promise.all([getCategories(), resolveCategory(cat)]);
+  if (!category) return <EmptyState>Todavía no hay categorías configuradas.</EmptyState>;
+
+  const tournament = await resolveTournament(category.id, torneo);
+  if (!tournament) return <EmptyState>Esta categoría todavía no está en ningún torneo.</EmptyState>;
 
   const [matches, teams, venues, officials] = await Promise.all([
-    getMatches({ seasonId: season.id, categoryId: category.id }),
-    getTeams(season.id).then((all) => all.filter((t) => t.categoryId === category.id)),
+    getMatches({ tournamentId: tournament.id, categoryId: category.id }),
+    getTeams(tournament.id).then((all) => all.filter((t) => t.categoryId === category.id)),
     getVenues(),
     getAssignedMatchIds(),
   ]);
@@ -84,7 +87,7 @@ async function MatchesAdmin({ cat }: { cat: string | string[] | undefined }) {
               <p className="text-sm text-muted">Esta categoría necesita al menos 2 equipos.</p>
             ) : (
               <AdminForm action={createMatch} submitLabel="Programar partido" resetOnSuccess>
-                <input type="hidden" name="season_id" value={season.id} />
+                <input type="hidden" name="tournament_id" value={tournament.id} />
                 <input type="hidden" name="category_id" value={category.id} />
                 <div className="grid grid-cols-2 gap-3">
                   <Field name="date" label="Fecha">

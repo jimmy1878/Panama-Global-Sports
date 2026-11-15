@@ -27,7 +27,7 @@ function slugify(text: string, suffix: string) {
 
 export async function createTeam(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = parseForm(
-    teamSchema.extend({ season_id: z.uuid(), category_id: z.uuid(), category_code: z.string() }),
+    teamSchema.extend({ tournament_id: z.uuid(), category_id: z.uuid(), category_code: z.string() }),
     formData,
   );
   if (parsed.errors) return parsed.errors;
@@ -84,14 +84,14 @@ const playerSchema = z.object({
 });
 
 export async function addPlayer(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = parseForm(playerSchema.extend({ team_id: z.uuid(), season_id: z.uuid() }), formData);
+  const parsed = parseForm(playerSchema.extend({ team_id: z.uuid(), tournament_id: z.uuid() }), formData);
   if (parsed.errors) return parsed.errors;
-  const { team_id, season_id, jersey_number, position, ...player } = parsed.data;
+  const { team_id, tournament_id, jersey_number, position, ...player } = parsed.data;
   return runAdmin(async (supabase) => {
     const created = check(await supabase.from("players").insert(player).select("id").single());
     const { error } = await supabase
       .from("roster_entries")
-      .insert({ team_id, season_id, player_id: created.id, jersey_number, position: position || null });
+      .insert({ team_id, tournament_id, player_id: created.id, jersey_number, position: position || null });
     if (error) {
       await supabase.from("players").delete().eq("id", created.id); // no dejar jugadores sueltos
       throw error;

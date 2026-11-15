@@ -28,11 +28,11 @@ export async function getMyMatches() {
   let query = supabase
     .from("matches")
     .select(
-      `id, starts_at, started_at, status, home_score, away_score, matchday,
+      `id, starts_at, started_at, status, home_score, away_score, matchday:matchdays(number),
        category:categories(code, league:leagues(name)),
        venue:venues(name),
-       home:teams!matches_home_team_id_season_id_category_id_fkey(${TEAM}),
-       away:teams!matches_away_team_id_season_id_category_id_fkey(${TEAM})`,
+       home:teams!matches_home_team_fkey(${TEAM}),
+       away:teams!matches_away_team_fkey(${TEAM})`,
     )
     .order("starts_at");
 
@@ -62,11 +62,11 @@ export async function getLiveMatch(matchId: string) {
   const { data: match, error } = await supabase
     .from("matches")
     .select(
-      `id, season_id, starts_at, started_at, finished_at, status, home_score, away_score, matchday,
+      `id, tournament_id, starts_at, started_at, finished_at, status, home_score, away_score, matchday:matchdays(number),
        category:categories(code, recognition_mode, league:leagues(name, mvp_mode, mvp_vote_hours)),
        venue:venues(name),
-       home:teams!matches_home_team_id_season_id_category_id_fkey(${TEAM}),
-       away:teams!matches_away_team_id_season_id_category_id_fkey(${TEAM}),
+       home:teams!matches_home_team_fkey(${TEAM}),
+       away:teams!matches_away_team_fkey(${TEAM}),
        match_officials(user_id)`,
     )
     .eq("id", matchId)

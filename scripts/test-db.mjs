@@ -70,7 +70,7 @@ for (const f of readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort()) {
 console.log("Seed:");
 const seed = readFileSync(join(ROOT, "supabase", "seed.sql"), "utf8");
 await expectOk("seed.sql", seed);
-await expectFail("no se puede correr dos veces", seed, /ya tiene temporadas/);
+await expectFail("no se puede correr dos veces", seed, /ya tiene torneos/);
 
 const counts = (await q(`select
   (select count(*) from categories)::int categorias, (select count(*) from teams)::int equipos,
@@ -78,7 +78,7 @@ const counts = (await q(`select
   (select count(*) from matches where status='finished')::int jugados,
   (select count(*) from match_events)::int eventos, (select count(*) from match_mvps)::int mvps`))[0];
 console.log("   " + JSON.stringify(counts));
-check(counts.categorias === 10 && counts.equipos === 60 && counts.partidos === 150, "10 categorías, 60 equipos, 150 partidos");
+check(counts.categorias === 10 && counts.equipos === 78 && counts.partidos === 195, "10 categorías, 78 equipos, 195 partidos");
 const rosterRange = (await q(`select min(c)::int mn, max(c)::int mx from (select count(*) c from roster_entries group by team_id) x`))[0];
 check(rosterRange.mn >= 12 && rosterRange.mx <= 18, `12–18 jugadores por equipo (${rosterRange.mn}–${rosterRange.mx})`);
 const goalMismatch = (await q(`select count(*)::int n from matches m where status='finished' and
@@ -140,7 +140,7 @@ const objs = await q(anon(`select name from storage.objects where bucket_id='pla
 check(objs.length === 1 && objs[0].name === `${P1}.jpg`, "storage: solo entrega la foto con consentimiento");
 const pubRead = (await q(anon(`select (select count(*) from standings)::int s, (select count(*) from season_leaders)::int l,
   (select count(*) from team_season_recognitions)::int r, (select count(*) from match_mvps)::int m`)))[0];
-check(pubRead.s === 60 && pubRead.l > 0 && pubRead.r === 60 && pubRead.m > 0, "lee posiciones, líderes, reconocimientos y MVPs", JSON.stringify(pubRead));
+check(pubRead.s === 78 && pubRead.l > 0 && pubRead.r === 78 && pubRead.m > 0, "lee posiciones, líderes, reconocimientos y MVPs", JSON.stringify(pubRead));
 for (const fn of ["start_match(gen_random_uuid())", "cast_mvp_vote(gen_random_uuid(), gen_random_uuid())",
                   "set_photo_consent(gen_random_uuid(), true)", "close_expired_mvp_votes()"]) {
   await expectFail(`no ejecuta ${fn.split("(")[0]}`, anon(`select ${fn}`), /permission denied/);
@@ -150,11 +150,23 @@ for (const fn of ["start_match(gen_random_uuid())", "cast_mvp_vote(gen_random_uu
 // Posiciones y líderes
 // ---------------------------------------------------------------------------
 console.log("Posiciones y líderes:");
-const st = await q(`select position, played, won, drawn, lost, goals_for, goals_against, goal_difference, points from standings
-  where category_id = (select c.id from categories c join leagues l on l.id=c.league_id where l.gender='boys' and c.code='U10') order by position`);
+// Boys U10 se juega en tres torneos a la vez: la tabla es de cada torneo, no de la categoría
+const BOYS_U10 = `(select c.id from categories c join leagues l on l.id=c.league_id where l.slug='boys' and c.code='U10')`;
+const tourStandings = (slug) => `select s.position, s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against,
+    s.goal_difference, s.points
+  from standings s
+  join tournaments t on t.id = s.tournament_id
+  join leagues l on l.id = t.league_id and l.slug = 'boys'
+  where t.slug = '${slug}' and s.category_id = ${BOYS_U10} order by s.position`;
+
+const st = await q(tourStandings("escolares-clausura-2026"));
 check(st.length === 6 && st.every((r) => r.played === 3 && r.points === 3 * r.won + r.drawn && r.goal_difference === r.goals_for - r.goals_against),
   "standings: PJ, G, E, P, GF, GC, DG y Pts coherentes (3/1/0)");
 check(st[0].position === 1, "standings: incluye posición");
+const stDone = await q(tourStandings("escolares-apertura-2026"));
+check(stDone.length === 6 && stDone.every((r) => r.played === 5), "standings: cada torneo lleva su propia cuenta (el finalizado, 5 jornadas)");
+const u10Tables = (await q(`select count(distinct tournament_id)::int n from standings where category_id = ${BOYS_U10}`))[0].n;
+check(u10Tables === 3, `una tabla de Boys U10 por torneo (${u10Tables})`);
 const smallCats = (await q(`select count(*)::int n from season_leaders s join categories c on c.id=s.category_id where c.code in ('U6','U8')`))[0].n;
 const smallStats = (await q(`select count(*)::int n from player_season_stats s join categories c on c.id=s.category_id where c.recognition_mode='team_stars'`))[0].n;
 check(smallCats === 0 && smallStats === 0, "U6/U8: sin ranking individual ni goleadores (filtrado en la BD)");
@@ -375,18 +387,21 @@ check(!/last_name|photo|birth/.test(scorerCols), "tarjetas: solo nombre + inicia
 // Certificados
 // ---------------------------------------------------------------------------
 console.log("Certificados:");
-check((await q(user(PARENT, `select * from my_family_season_certificates`))).length === 0, "temporada abierta: sin certificados");
-await db.exec(`update seasons set closed_at = now() where is_current`);
-const certs = await q(user(PARENT, `select player_id, recognition_mode, matches_played, goals, mvps, stars, participated from my_family_season_certificates`));
+// El certificado sale al FINALIZAR el torneo (la unidad que antes era la temporada)
+check((await q(user(PARENT, `select * from my_family_tournament_certificates`))).length === 0, "torneo en curso: sin certificados");
+const openTournaments = (await q(`select id from tournaments where status='en_curso'`)).map((r) => `'${r.id}'`).join(",");
+await db.exec(`update tournaments set status='finalizado' where status='en_curso'`);
+const certs = await q(user(PARENT, `select player_id, recognition_mode, matches_played, goals, mvps, stars, participated, season_year from my_family_tournament_certificates`));
 const famKids = (await q(`select count(*)::int c from family_players where family_id='${U(101)}'`))[0].c;
 check(certs.length === famKids, `la familia A ve ${famKids} certificados (sus hijos)`);
+check(certs.every((c) => c.season_year === 2026), "el certificado lleva el año (la temporada)");
 check(certs.every((c) => c.recognition_mode === "individual_ranking" ? c.matches_played !== null : c.goals === null && c.stars === null),
   "U10+: con estadísticas · U6/U8: sin números individuales");
-check((await q(user(OUTSIDER, `select * from my_family_season_certificates`))).length === 0, "otra familia no ve certificados ajenos");
-await expectFail("el público no accede a certificados", anon(`select * from my_family_season_certificates`), /permission denied/);
-const smallCert = (await q(user(BOYS_PARENT, `select recognition_mode, goals, participated from my_family_season_certificates`)));
+check((await q(user(OUTSIDER, `select * from my_family_tournament_certificates`))).length === 0, "otra familia no ve certificados ajenos");
+await expectFail("el público no accede a certificados", anon(`select * from my_family_tournament_certificates`), /permission denied/);
+const smallCert = (await q(user(BOYS_PARENT, `select recognition_mode, goals, participated from my_family_tournament_certificates`)));
 console.log("   certificado de la familia de niños:", JSON.stringify(smallCert));
-await db.exec(`update seasons set closed_at = null where is_current`);
+await db.exec(`update tournaments set status='en_curso' where id in (${openTournaments})`);
 
 // ---------------------------------------------------------------------------
 // Validaciones de datos
@@ -394,9 +409,67 @@ await db.exec(`update seasons set closed_at = null where is_current`);
 console.log("Validaciones:");
 await expectFail("rechaza puntos negativos", user(ADMIN, `update event_types set points=-1 where code='red_card'`), /check constraint/);
 await expectFail("rechaza apellido completo", user(ADMIN, `insert into players (first_name, last_initial) values ('Ana','Pérez')`), /check constraint/);
-await expectFail("rechaza partido entre categorías distintas", `insert into matches (season_id, category_id, home_team_id, away_team_id, starts_at)
-  select t1.season_id, t1.category_id, t1.id, t2.id, now() from teams t1, teams t2 where t1.category_id <> t2.category_id limit 1`, /foreign key/);
+await expectFail("rechaza partido entre categorías distintas", `insert into matches (tournament_id, category_id, home_team_id, away_team_id, starts_at)
+  select t1.tournament_id, t1.category_id, t1.id, t2.id, now() from teams t1, teams t2 where t1.category_id <> t2.category_id limit 1`, /foreign key/);
+await expectFail("rechaza partido entre equipos de torneos distintos", `insert into matches (tournament_id, category_id, home_team_id, away_team_id, starts_at)
+  select t1.tournament_id, t1.category_id, t1.id, t2.id, now() from teams t1, teams t2
+  where t1.category_id = t2.category_id and t1.tournament_id <> t2.tournament_id limit 1`, /foreign key/);
 await expectOk("admin cambia el rol de otro usuario", user(ADMIN, `update profiles set role='delegate' where id='${HACKER}'`));
+
+// ---------------------------------------------------------------------------
+// Estructura de la liga: circuitos, tipos de torneo y temporada
+// ---------------------------------------------------------------------------
+console.log("Estructura de la liga:");
+const estructura = (await q(`select
+  (select count(*) from circuits)::int circuitos,
+  (select count(*) from tournament_types)::int tipos,
+  (select count(*) from tournaments)::int torneos,
+  (select count(*) from matchdays)::int jornadas`))[0];
+check(estructura.circuitos === 2 && estructura.tipos === 3 && estructura.torneos === 7,
+  "2 circuitos, 3 tipos de torneo, 7 torneos", JSON.stringify(estructura));
+
+const enCurso = await q(`select l.slug, count(*)::int n from tournaments t join leagues l on l.id=t.league_id
+  where t.status='en_curso' group by l.slug order by l.slug`);
+check(enCurso.find((r) => r.slug === "boys")?.n === 2,
+  "dos torneos de la misma liga pueden estar en curso a la vez", JSON.stringify(enCurso));
+
+await expectFail("la Copa de Navidad no existe en Escolares",
+  `insert into tournaments (league_id, circuit_id, tournament_type_id, year, slug, name, starts_on, ends_on)
+   select (select id from leagues where slug='boys'),
+          (select id from circuits where slug='escolares'),
+          (select id from tournament_types where slug='copa-navidad'),
+          2027, 'copa-navidad-escolares-2027', 'Copa de Navidad Escolares 2027', '2027-12-01', '2027-12-20'`,
+  /tournaments_type_allows_circuit|foreign key/);
+
+await expectFail("una categoría de otra liga no entra en el torneo",
+  `insert into tournament_categories (tournament_id, category_id, league_id)
+   select t.id, c.id, t.league_id
+   from tournaments t, categories c
+   where t.slug='escolares-clausura-2026' and t.league_id=(select id from leagues where slug='boys')
+     and c.league_id=(select id from leagues where slug='girls') limit 1`,
+  /foreign key/);
+
+await expectFail("un niño no se inscribe dos veces en el mismo torneo",
+  `insert into roster_entries (team_id, tournament_id, player_id, jersey_number)
+   select t2.id, r.tournament_id, r.player_id, 99
+   from roster_entries r
+   join teams t1 on t1.id = r.team_id
+   join teams t2 on t2.tournament_id = t1.tournament_id and t2.category_id = t1.category_id and t2.id <> t1.id
+   limit 1`,
+  /roster_entries_player_tournament_key|duplicate key/);
+
+await expectOk("un niño sí puede jugar en su academia y en su colegio a la vez",
+  `insert into roster_entries (team_id, tournament_id, player_id, jersey_number)
+   select t2.id, t2.tournament_id, r.player_id, 77
+   from roster_entries r
+   join teams t1 on t1.id = r.team_id
+   join tournaments o1 on o1.id = t1.tournament_id
+   join teams t2 on t2.category_id = t1.category_id and t2.tournament_id <> t1.tournament_id
+   join tournaments o2 on o2.id = t2.tournament_id and o2.circuit_id <> o1.circuit_id
+   where not exists (select 1 from roster_entries x where x.team_id = t2.id and x.jersey_number = 77)
+   limit 1`);
+
+check((await q(`select public.current_season()::int as y`))[0].y === 2026, "temporada = año vigente (2026)");
 
 // ---------------------------------------------------------------------------
 // Funciones del panel de administración
@@ -409,11 +482,16 @@ await expectFail("el público no lista usuarios", anon(`select * from admin_list
 const found = await q(user(ADMIN, `select id from admin_find_user('  P@X ')`));
 check(found.length === 1 && found[0].id === PARENT, "admin busca usuario por correo (sin importar mayúsculas/espacios)");
 await expectFail("un delegado no busca usuarios", user(DELEG, `select * from admin_find_user('p@x')`), /No autorizado/);
-const S1 = (await q(`select id from seasons where number=1`))[0].id;
-await expectOk("admin cambia la temporada actual", user(ADMIN, `select admin_set_current_season('${S1}')`));
-check((await q(`select number from seasons where is_current`)).map((r) => r.number).join() === "1", "solo una temporada actual (la nueva)");
-await expectFail("un padre no cambia la temporada", user(PARENT, `select admin_set_current_season('${S1}')`), /No autorizado/);
-await db.exec(`select admin_set_current_season((select id from seasons where number=5))`);
+const T1 = (await q(`select t.id from tournaments t join leagues l on l.id=t.league_id
+  where l.slug='boys' and t.slug='academias-clausura-2026'`))[0].id;
+await expectOk("admin finaliza un torneo", user(ADMIN, `select admin_set_tournament_status('${T1}', 'finalizado')`));
+const fin = (await q(`select status, finished_at is not null as sellado from tournaments where id='${T1}'`))[0];
+check(fin.status === "finalizado" && fin.sellado, "el torneo finalizado queda sellado con la fecha");
+await expectFail("un padre no cambia el estado de un torneo",
+  user(PARENT, `select admin_set_tournament_status('${T1}', 'en_curso')`), /No autorizado/);
+await db.exec(`select admin_set_tournament_status('${T1}', 'en_curso')`);
+check((await q(`select finished_at from tournaments where id='${T1}'`))[0].finished_at === null,
+  "reabrir el torneo borra la fecha de finalización");
 
 console.log(failures ? `\n${failures} PRUEBA(S) FALLARON, ${passed} pasaron` : `\nTODAS LAS PRUEBAS PASARON (${passed})`);
 process.exit(failures ? 1 : 0);

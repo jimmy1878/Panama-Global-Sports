@@ -9,8 +9,8 @@ const dayFmt = new Intl.DateTimeFormat("es-PA", { timeZone: TZ, weekday: "long" 
 const MATCH_SELECT = `id, starts_at, status, home_score, away_score, home_team_id, away_team_id,
   category:categories(code),
   venue:venues(name),
-  home:teams!matches_home_team_id_season_id_category_id_fkey(name),
-  away:teams!matches_away_team_id_season_id_category_id_fkey(name)`;
+  home:teams!matches_home_team_fkey(name),
+  away:teams!matches_away_team_fkey(name)`;
 
 /**
  * "Final: Tigres 3 – 1 Leones" a quienes siguen a cualquiera de los dos equipos.

@@ -11,8 +11,27 @@ import { createPublicClient, teamLogoUrl } from "@/lib/supabase/public";
 
 export type RecognitionMode = Enums<"recognition_mode">;
 export type MatchStatus = Enums<"match_status">;
+export type TournamentStatus = Enums<"tournament_status">;
 
-export type Season = { id: string; name: string; startsOn: string; endsOn: string };
+/**
+ * Torneo = liga × circuito (Academias/Escolares) × tipo (Apertura/Clausura/
+ * Copa de Navidad) × año. Sustituye a la antigua "temporada", que era una sola
+ * para toda la plataforma. Pueden estar varios en curso a la vez.
+ * La temporada es ahora el año (`year`).
+ */
+export type Tournament = {
+  id: string;
+  leagueId: string;
+  leagueName: string;
+  slug: string; // "academias-clausura-2026"
+  name: string; // "Academias · Clausura 2026"
+  year: number;
+  status: TournamentStatus;
+  circuitName: string; // "Academias"
+  typeName: string; // "Clausura"
+  startsOn: string;
+  endsOn: string;
+};
 
 export type Category = {
   id: string;
@@ -38,6 +57,7 @@ export type Team = {
 export type Match = {
   id: string;
   categoryId: string;
+  tournamentId: string;
   startsAt: string;
   startedAt: string | null; // hora real de inicio (para el minuto en vivo)
   finishedAt: string | null;
@@ -82,20 +102,91 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const isUuid = (value: string) => UUID_RE.test(value);
 
 // ---------------------------------------------------------------------------
-// Temporada y categorías
+// Torneos y categorías
 // ---------------------------------------------------------------------------
-export async function getCurrentSeason(): Promise<Season | null> {
+const TOURNAMENT_SELECT = `id, league_id, slug, name, year, status, starts_on, ends_on,
+  league:leagues!inner(name),
+  circuit:circuits!inner(name),
+  type:tournament_types!inner(name)`;
+
+type TournamentRow = {
+  id: string;
+  league_id: string;
+  slug: string;
+  name: string;
+  year: number;
+  status: TournamentStatus;
+  starts_on: string;
+  ends_on: string;
+  league: { name: string };
+  circuit: { name: string };
+  type: { name: string };
+};
+
+function toTournament(t: TournamentRow): Tournament {
+  return {
+    id: t.id,
+    leagueId: t.league_id,
+    leagueName: t.league.name,
+    slug: t.slug,
+    name: t.name,
+    year: t.year,
+    status: t.status,
+    circuitName: t.circuit.name,
+    typeName: t.type.name,
+    startsOn: t.starts_on,
+    endsOn: t.ends_on,
+  };
+}
+
+/** Orden de presentación: primero los que se juegan, luego los más recientes. */
+const TOURNAMENT_ORDER: Record<TournamentStatus, number> = {
+  en_curso: 0,
+  inscripciones: 1,
+  proximo: 2,
+  finalizado: 3,
+};
+
+function sortTournaments(list: Tournament[]): Tournament[] {
+  return [...list].sort(
+    (a, b) => TOURNAMENT_ORDER[a.status] - TOURNAMENT_ORDER[b.status] || b.startsOn.localeCompare(a.startsOn),
+  );
+}
+
+export async function getTournaments(): Promise<Tournament[]> {
   "use cache";
-  cacheLife("hours");
-  cacheTag("seasons");
+  cacheLife("minutes");
+  cacheTag("tournaments");
+
+  const { data, error } = await createPublicClient().from("tournaments").select(TOURNAMENT_SELECT);
+  if (error) fail("los torneos", error);
+  return sortTournaments((data as unknown as TournamentRow[]).map(toTournament));
+}
+
+/** Los que se están jugando ahora. Puede haber varios, incluso de la misma liga. */
+export async function getCurrentTournaments(): Promise<Tournament[]> {
+  return (await getTournaments()).filter((t) => t.status === "en_curso");
+}
+
+/** Torneos en los que se juega una categoría, el más relevante primero. */
+export async function getTournamentsForCategory(categoryId: string): Promise<Tournament[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("tournaments");
 
   const { data, error } = await createPublicClient()
-    .from("seasons")
-    .select("id, name, starts_on, ends_on")
-    .eq("is_current", true)
-    .maybeSingle();
-  if (error) fail("la temporada", error);
-  return data ? { id: data.id, name: data.name, startsOn: data.starts_on, endsOn: data.ends_on } : null;
+    .from("tournament_categories")
+    .select(`tournament:tournaments!inner(${TOURNAMENT_SELECT})`)
+    .eq("category_id", categoryId);
+  if (error) fail("los torneos de la categoría", error);
+  return sortTournaments((data as unknown as { tournament: TournamentRow }[]).map((r) => toTournament(r.tournament)));
+}
+
+/** Torneo elegido en la URL (?torneo=academias-clausura-2026) o el más relevante. */
+export async function resolveTournament(categoryId: string, key: string | string[] | undefined) {
+  const tournaments = await getTournamentsForCategory(categoryId);
+  const wanted = Array.isArray(key) ? key[0] : key;
+  return tournaments.find((t) => t.slug === wanted) ?? tournaments[0] ?? null;
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -133,7 +224,7 @@ export async function resolveCategory(key: string | string[] | undefined): Promi
 // ---------------------------------------------------------------------------
 // Equipos
 // ---------------------------------------------------------------------------
-export async function getTeams(seasonId: string): Promise<Team[]> {
+export async function getTeams(tournamentId: string): Promise<Team[]> {
   "use cache";
   cacheLife("hours");
   cacheTag("teams");
@@ -141,7 +232,28 @@ export async function getTeams(seasonId: string): Promise<Team[]> {
   const { data, error } = await createPublicClient()
     .from("teams")
     .select(TEAM_COLUMNS)
-    .eq("season_id", seasonId)
+    .eq("tournament_id", tournamentId)
+    .order("name");
+  if (error) fail("los equipos", error);
+  return data.map(toTeam);
+}
+
+/** Equipos de todos los torneos en curso (seguir equipos, avisos, cuenta de familia). */
+export async function getCurrentTeams(): Promise<Team[]> {
+  const tournaments = await getCurrentTournaments();
+  if (!tournaments.length) return [];
+  return getTeamsOf(tournaments.map((t) => t.id));
+}
+
+async function getTeamsOf(tournamentIds: string[]): Promise<Team[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("teams");
+
+  const { data, error } = await createPublicClient()
+    .from("teams")
+    .select(TEAM_COLUMNS)
+    .in("tournament_id", tournamentIds)
     .order("name");
   if (error) fail("los equipos", error);
   return data.map(toTeam);
@@ -162,7 +274,7 @@ export async function getTeamDetail(teamId: string) {
   const supabase = createPublicClient();
   const { data: team, error } = await supabase
     .from("teams")
-    .select(`${TEAM_COLUMNS}, season_id`)
+    .select(`${TEAM_COLUMNS}, tournament_id`)
     .eq("id", teamId)
     .maybeSingle();
   if (error) fail("el equipo", error);
@@ -183,7 +295,7 @@ export async function getTeamDetail(teamId: string) {
     position: r.position,
   }));
 
-  return { team: toTeam(team), seasonId: team.season_id, players };
+  return { team: toTeam(team), tournamentId: team.tournament_id, players };
 }
 
 /** Nombres públicos (nombre + inicial) desde la vista public_players. */
@@ -204,18 +316,21 @@ async function getPlayerNames(ids: string[]): Promise<Map<string, string>> {
 // ---------------------------------------------------------------------------
 // Partidos
 // ---------------------------------------------------------------------------
-const MATCH_SELECT = `id, category_id, starts_at, started_at, finished_at, matchday, status, home_score, away_score,
+// La jornada ya no es un número en el partido: es una fila de `matchdays`.
+const MATCH_SELECT = `id, category_id, tournament_id, starts_at, started_at, finished_at, status, home_score, away_score,
+  matchday:matchdays(number),
   venue:venues(name),
-  home:teams!matches_home_team_id_season_id_category_id_fkey(${TEAM_COLUMNS}),
-  away:teams!matches_away_team_id_season_id_category_id_fkey(${TEAM_COLUMNS})`;
+  home:teams!matches_home_team_fkey(${TEAM_COLUMNS}),
+  away:teams!matches_away_team_fkey(${TEAM_COLUMNS})`;
 
 type MatchRow = {
   id: string;
   category_id: string;
+  tournament_id: string;
   starts_at: string;
   started_at: string | null;
   finished_at: string | null;
-  matchday: number | null;
+  matchday: { number: number } | null;
   status: MatchStatus;
   home_score: number | null;
   away_score: number | null;
@@ -228,10 +343,11 @@ function toMatch(m: MatchRow): Match {
   return {
     id: m.id,
     categoryId: m.category_id,
+    tournamentId: m.tournament_id,
     startsAt: m.starts_at,
     startedAt: m.started_at,
     finishedAt: m.finished_at,
-    matchday: m.matchday,
+    matchday: m.matchday?.number ?? null,
     status: m.status,
     homeScore: m.home_score,
     awayScore: m.away_score,
@@ -241,13 +357,13 @@ function toMatch(m: MatchRow): Match {
   };
 }
 
-/** Partidos de la temporada; opcionalmente de una categoría o un equipo. */
-export async function getMatches(opts: { seasonId: string; categoryId?: string; teamId?: string }): Promise<Match[]> {
+/** Partidos del torneo; opcionalmente de una categoría o un equipo. */
+export async function getMatches(opts: { tournamentId: string; categoryId?: string; teamId?: string }): Promise<Match[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("matches");
 
-  let query = createPublicClient().from("matches").select(MATCH_SELECT).eq("season_id", opts.seasonId);
+  let query = createPublicClient().from("matches").select(MATCH_SELECT).eq("tournament_id", opts.tournamentId);
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
   if (opts.teamId) query = query.or(`home_team_id.eq.${opts.teamId},away_team_id.eq.${opts.teamId}`);
 
@@ -256,18 +372,18 @@ export async function getMatches(opts: { seasonId: string; categoryId?: string; 
   return (data as unknown as MatchRow[]).map(toMatch);
 }
 
-/** Para Inicio: en vivo, próximos y últimos resultados (de todas las categorías). */
-export async function getHomeMatches(seasonId: string, limit = 6) {
+/** Para Inicio: en vivo, próximos y últimos resultados de todos los torneos en curso. */
+export async function getHomeMatches(tournamentIds: string[], limit = 6) {
   "use cache";
   cacheLife("minutes");
   cacheTag("matches");
 
   const supabase = createPublicClient();
   const [live, upcoming, recent] = await Promise.all([
-    supabase.from("matches").select(MATCH_SELECT).eq("season_id", seasonId).eq("status", "live").order("starts_at"),
-    supabase.from("matches").select(MATCH_SELECT).eq("season_id", seasonId).eq("status", "scheduled")
+    supabase.from("matches").select(MATCH_SELECT).in("tournament_id", tournamentIds).eq("status", "live").order("starts_at"),
+    supabase.from("matches").select(MATCH_SELECT).in("tournament_id", tournamentIds).eq("status", "scheduled")
       .order("starts_at").order("id").limit(limit),
-    supabase.from("matches").select(MATCH_SELECT).eq("season_id", seasonId).eq("status", "finished")
+    supabase.from("matches").select(MATCH_SELECT).in("tournament_id", tournamentIds).eq("status", "finished")
       .order("starts_at", { ascending: false }).order("id").limit(limit),
   ]);
   for (const r of [live, upcoming, recent]) if (r.error) fail("los partidos", r.error);
@@ -400,16 +516,16 @@ export type StandingRow = {
   points: number;
 };
 
-export async function getStandings(seasonId: string, categoryId: string): Promise<StandingRow[]> {
+export async function getStandings(tournamentId: string, categoryId: string): Promise<StandingRow[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("matches", "standings");
 
   const supabase = createPublicClient();
   const [{ data, error }, teams] = await Promise.all([
-    supabase.from("standings").select("*").eq("season_id", seasonId).eq("category_id", categoryId)
+    supabase.from("standings").select("*").eq("tournament_id", tournamentId).eq("category_id", categoryId)
       .order("position").order("team_id"),
-    getTeams(seasonId),
+    getTeams(tournamentId),
   ]);
   if (error) fail("la tabla de posiciones", error);
   const byId = new Map(teams.map((t) => [t.id, t]));
@@ -443,16 +559,16 @@ export const LEADER_STATS = [
 export type LeaderRow = { position: number; playerName: string; team: Team; value: number };
 
 /** Líderes por estadística. Vacío en U6/U8: la vista los excluye desde la BD. */
-export async function getLeaders(seasonId: string, categoryId: string, top = 5) {
+export async function getLeaders(tournamentId: string, categoryId: string, top = 5) {
   "use cache";
   cacheLife("minutes");
   cacheTag("matches", "leaders");
 
   const supabase = createPublicClient();
   const [{ data, error }, teams] = await Promise.all([
-    supabase.from("season_leaders").select("*").eq("season_id", seasonId).eq("category_id", categoryId)
+    supabase.from("season_leaders").select("*").eq("tournament_id", tournamentId).eq("category_id", categoryId)
       .lte("position", top).order("position").order("player_id"),
-    getTeams(seasonId),
+    getTeams(tournamentId),
   ]);
   if (error) fail("los líderes", error);
 
@@ -475,15 +591,15 @@ export async function getLeaders(seasonId: string, categoryId: string, top = 5) 
 export type TeamRecognition = { team: Team; stars: number; goals: number; fairPlay: number };
 
 /** Reconocimientos de equipo (todas las categorías; protagonistas en U6/U8). */
-export async function getTeamRecognitions(seasonId: string, categoryId: string): Promise<TeamRecognition[]> {
+export async function getTeamRecognitions(tournamentId: string, categoryId: string): Promise<TeamRecognition[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("matches", "recognitions");
 
   const supabase = createPublicClient();
   const [{ data, error }, teams] = await Promise.all([
-    supabase.from("team_season_recognitions").select("*").eq("season_id", seasonId).eq("category_id", categoryId),
-    getTeams(seasonId),
+    supabase.from("team_season_recognitions").select("*").eq("tournament_id", tournamentId).eq("category_id", categoryId),
+    getTeams(tournamentId),
   ]);
   if (error) fail("los reconocimientos", error);
   const byId = new Map(teams.map((t) => [t.id, t]));
@@ -499,7 +615,7 @@ export async function getTeamRecognitions(seasonId: string, categoryId: string):
 export type PlayerStatLine = { goals: number; assists: number; mvps: number; saves: number; points: number };
 
 /** Estadísticas del plantel de un equipo (solo U10+; vacío en U6/U8). */
-export async function getTeamPlayerStats(seasonId: string, teamId: string): Promise<Record<string, PlayerStatLine>> {
+export async function getTeamPlayerStats(tournamentId: string, teamId: string): Promise<Record<string, PlayerStatLine>> {
   "use cache";
   cacheLife("minutes");
   cacheTag("matches", `team-${teamId}`);
@@ -507,7 +623,7 @@ export async function getTeamPlayerStats(seasonId: string, teamId: string): Prom
   const { data, error } = await createPublicClient()
     .from("player_season_stats")
     .select("player_id, goals, assists, mvps, saves, points")
-    .eq("season_id", seasonId)
+    .eq("tournament_id", tournamentId)
     .eq("team_id", teamId);
   if (error) fail("las estadísticas del equipo", error);
 

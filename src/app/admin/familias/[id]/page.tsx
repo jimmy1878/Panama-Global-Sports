@@ -7,7 +7,7 @@ import { PageTitle, Section, Skeleton } from "@/components/ui/section";
 import { RELATIONSHIPS } from "@/features/admin/constants";
 import { getFamily, getUsers, searchPlayers } from "@/features/admin/data";
 import { AdminForm, Field, Select, TextInput } from "@/features/admin/form";
-import { getCurrentSeason, isUuid } from "@/features/league/data";
+import { getCurrentTournaments, isUuid } from "@/features/league/data";
 import { addMember, deleteFamily, linkChild, removeMember, renameFamily, unlinkChild } from "../actions";
 
 export const metadata: Metadata = { title: "Familia" };
@@ -24,12 +24,16 @@ export default function FamilyAdminPage({ params, searchParams }: PageProps<"/ad
 
 async function FamilyAdmin({ id, q }: { id: string; q: string }) {
   if (!isUuid(id)) notFound();
-  const [family, users, season] = await Promise.all([getFamily(id), getUsers(), getCurrentSeason()]);
+  const [family, users, tournaments] = await Promise.all([getFamily(id), getUsers(), getCurrentTournaments()]);
   if (!family) notFound();
 
   const userById = new Map(users.map((u) => [u.id, u]));
   const linked = new Set(family.family_players.flatMap((fp) => (fp.player ? [fp.player.id] : [])));
-  const results = q.length >= 2 && season ? (await searchPlayers(season.id, q)).filter((r) => !linked.has(r.player_id)) : [];
+  const tournamentIds = tournaments.map((t) => t.id);
+  const results =
+    q.length >= 2 && tournamentIds.length
+      ? (await searchPlayers(tournamentIds, q)).filter((r) => !linked.has(r.player_id))
+      : [];
   const relLabel = (r: string | null) => RELATIONSHIPS.find((x) => x.value === r)?.label ?? "Adulto";
 
   return (
@@ -91,13 +95,13 @@ async function FamilyAdmin({ id, q }: { id: string; q: string }) {
                 {family.family_players.flatMap((fp) => {
                   const p = fp.player;
                   if (!p) return [];
-                  const current = p.roster_entries.find((r) => r.team?.season_id === season?.id);
+                  const current = p.roster_entries.find((r) => tournamentIds.includes(r.team?.tournament_id ?? ""));
                   return [
                     <li key={p.id} className="flex items-center gap-2 text-sm">
                       <Link href={`/admin/jugadores/${p.id}`} className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-brand-blue">{p.display_name}</span>
                         <span className="block text-xs text-muted">
-                          {current ? `${current.team?.name} · #${current.jersey_number}` : "Sin equipo esta temporada"}
+                          {current ? `${current.team?.name} · #${current.jersey_number}` : "Sin equipo en los torneos en curso"}
                         </span>
                       </Link>
                       <AdminForm action={unlinkChild} submitLabel="Quitar" compact danger className="contents">
@@ -147,7 +151,7 @@ async function FamilyAdmin({ id, q }: { id: string; q: string }) {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted">Sin resultados para “{q}” en la temporada actual.</p>
+                <p className="text-sm text-muted">Sin resultados para “{q}” en los torneos en curso.</p>
               )
             ) : null}
           </div>

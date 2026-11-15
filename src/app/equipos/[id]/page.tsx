@@ -41,17 +41,17 @@ async function TeamContent({ id }: { id: string }) {
   if (!isUuid(id)) notFound();
   const detail = await getTeamDetail(id);
   if (!detail) notFound();
-  const { team, seasonId, players } = detail;
+  const { team, tournamentId, players } = detail;
 
   const categories = await getCategories();
   const category = categories.find((c) => c.id === team.categoryId);
   const individual = category?.recognitionMode === "individual_ranking";
 
   const [matches, standings, stats, recognitions] = await Promise.all([
-    getMatches({ seasonId, teamId: team.id }),
-    getStandings(seasonId, team.categoryId),
-    individual ? getTeamPlayerStats(seasonId, team.id) : Promise.resolve({} as Record<string, PlayerStatLine>),
-    individual ? Promise.resolve([]) : getTeamRecognitions(seasonId, team.categoryId),
+    getMatches({ tournamentId, teamId: team.id }),
+    getStandings(tournamentId, team.categoryId),
+    individual ? getTeamPlayerStats(tournamentId, team.id) : Promise.resolve({} as Record<string, PlayerStatLine>),
+    individual ? Promise.resolve([]) : getTeamRecognitions(tournamentId, team.categoryId),
   ]);
   const standing = standings.find((s) => s.team.id === team.id);
   const stars = recognitions.find((r) => r.team.id === team.id)?.stars;

@@ -2,22 +2,22 @@ import Link from "next/link";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { EmptyState, PageTitle } from "@/components/ui/section";
 import { getDashboardCounts } from "@/features/admin/data";
-import { getCurrentSeason } from "@/features/league/data";
+import { getCurrentTournaments } from "@/features/league/data";
 import { ADMIN_SECTIONS } from "@/features/admin/sections";
 
 export default async function AdminHome() {
-  const season = await getCurrentSeason();
-  if (!season) {
+  const tournaments = await getCurrentTournaments();
+  if (!tournaments.length) {
     return (
       <>
         <PageTitle title="Administración" />
         <EmptyState>
-          No hay temporada actual. <Link href="/admin/temporadas" className="font-semibold text-brand-blue">Crea o marca una temporada</Link>.
+          No hay ningún torneo en curso. <Link href="/admin/torneos" className="font-semibold text-brand-blue">Crea un torneo o márcalo en curso</Link>.
         </EmptyState>
       </>
     );
   }
-  const counts = await getDashboardCounts(season.id);
+  const counts = await getDashboardCounts(tournaments.map((t) => t.id));
 
   const stats = [
     { label: "Equipos", value: counts.teams, href: "/admin/equipos" },
@@ -29,7 +29,10 @@ export default async function AdminHome() {
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Administración" subtitle={season.name} />
+      <PageTitle
+        title="Administración"
+        subtitle={tournaments.map((t) => `${t.leagueName} · ${t.name}`).join("   ·   ")}
+      />
 
       {counts.withoutOfficial > 0 ? (
         <Link

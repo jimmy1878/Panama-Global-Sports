@@ -4,14 +4,13 @@ import { CalendarDays, ChartColumn, Radio } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { LiveRefresher } from "@/components/live/live-refresher";
 import { MatchCard } from "@/features/league/components/match-list";
-import { getCategories, getCurrentSeason, getHomeMatches, type Category, type Match } from "@/features/league/data";
-import { formatDateOnly } from "@/lib/format";
+import { getCategories, getCurrentTournaments, getHomeMatches, type Category, type Match } from "@/features/league/data";
 
 export default function Home() {
   return (
     <div className="space-y-8 md:space-y-10">
       <Suspense fallback={<Skeleton className="h-36 md:h-44" />}>
-        <SeasonHero />
+        <TournamentsHero />
       </Suspense>
       <Suspense fallback={<HomeSkeleton />}>
         <HomeMatches />
@@ -23,18 +22,23 @@ export default function Home() {
   );
 }
 
-async function SeasonHero() {
-  const season = await getCurrentSeason();
+async function TournamentsHero() {
+  const tournaments = await getCurrentTournaments();
   return (
     <section className="relative overflow-hidden rounded-3xl bg-brand-blue p-6 text-white md:p-10">
       <div aria-hidden className="absolute -right-10 -bottom-16 size-48 rounded-full bg-white/10 md:size-72" />
       <div aria-hidden className="absolute top-6 right-6 h-1.5 w-16 rounded-full bg-brand-red md:w-24" />
       <p className="text-sm font-medium text-white/80">Ligas infantiles de fútbol</p>
       <h1 className="mt-1 text-2xl font-black md:text-4xl">Panama Global Sports</h1>
-      {season ? (
-        <p className="mt-3 text-sm text-white/90 md:text-base">
-          {season.name} · del {formatDateOnly(season.startsOn)} al {formatDateOnly(season.endsOn)}
-        </p>
+      {/* Pueden estar varios torneos en curso a la vez (Academias y Escolares) */}
+      {tournaments.length ? (
+        <ul className="mt-3 space-y-1 text-sm text-white/90 md:text-base">
+          {tournaments.map((t) => (
+            <li key={t.id}>
+              {t.leagueName} · {t.name}
+            </li>
+          ))}
+        </ul>
       ) : null}
       <div className="mt-5 flex gap-3">
         <Link href="/calendario" className="flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-brand-blue">
@@ -51,9 +55,12 @@ async function SeasonHero() {
 }
 
 async function HomeMatches() {
-  const season = await getCurrentSeason();
-  if (!season) return <EmptyState>No hay una temporada activa.</EmptyState>;
-  const [{ live, upcoming, recent }, categories] = await Promise.all([getHomeMatches(season.id), getCategories()]);
+  const tournaments = await getCurrentTournaments();
+  if (!tournaments.length) return <EmptyState>No hay ningún torneo en curso.</EmptyState>;
+  const [{ live, upcoming, recent }, categories] = await Promise.all([
+    getHomeMatches(tournaments.map((t) => t.id)),
+    getCategories(),
+  ]);
   const catById = new Map(categories.map((c) => [c.id, c]));
 
   return (

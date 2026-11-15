@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { PageTitle, Section, Skeleton } from "@/components/ui/section";
 import { TeamCrest } from "@/components/ui/team-crest";
 import { getFollowedTeamIds } from "@/features/family/data";
-import { getCurrentSeason, getTeams } from "@/features/league/data";
+import { getCurrentTeams } from "@/features/league/data";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PushManager } from "./push-manager";
@@ -25,12 +25,12 @@ export default function AvisosPage() {
 async function AvisosContent() {
   const user = await requireUser("/avisos");
   const supabase = await createClient();
-  const [{ data: prefs }, followedIds, season] = await Promise.all([
+  const [{ data: prefs }, followedIds, allTeams] = await Promise.all([
     supabase.from("notification_preferences").select("match_reminder, final_result").eq("user_id", user.id).maybeSingle(),
     getFollowedTeamIds(),
-    getCurrentSeason(),
+    getCurrentTeams(),
   ]);
-  const teams = season ? (await getTeams(season.id)).filter((t) => followedIds.includes(t.id)) : [];
+  const teams = allTeams.filter((t) => followedIds.includes(t.id));
 
   return (
     <div className="space-y-8">

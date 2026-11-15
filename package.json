@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:db": "node scripts/test-db.mjs",
+    "db:push": "node scripts/db-push.mjs",
     "db:types": "node scripts/db-types.mjs",
     "icons": "node scripts/generate-icons.mjs"
   },

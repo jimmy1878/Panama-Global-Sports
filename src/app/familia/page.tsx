@@ -8,7 +8,7 @@ import { TeamCrest } from "@/components/ui/team-crest";
 import { ConsentToggle, FollowButton } from "@/features/family/components";
 import { getMyFamily, type Child } from "@/features/family/data";
 import { StatusBadge } from "@/features/league/components/match-list";
-import { getCurrentSeason, getMatches, getTeams, type Match, type Team } from "@/features/league/data";
+import { getCurrentTeams, getCurrentTournaments, getMatches, type Match, type Team } from "@/features/league/data";
 import { formatDay, formatTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Mi familia", robots: { index: false } };
@@ -25,8 +25,8 @@ export default function FamiliaPage() {
 }
 
 async function FamilyContent() {
-  const season = await getCurrentSeason();
-  const family = await getMyFamily(season?.id ?? null);
+  const tournaments = await getCurrentTournaments();
+  const family = await getMyFamily(tournaments.map((t) => t.id));
 
   if (!family.children.length) {
     return (
@@ -37,20 +37,20 @@ async function FamilyContent() {
     );
   }
 
-  const teams = season ? await getTeams(season.id) : [];
+  const teams = await getCurrentTeams();
   const followed = new Set(family.followedTeamIds);
   const childTeamIds = [...new Set(family.children.flatMap((c) => (c.team ? [c.team.id] : [])))];
 
   // Próximo partido (o en vivo) de cada equipo de los hijos
   const nextByTeam = new Map<string, Match | undefined>();
-  if (season) {
-    await Promise.all(
-      childTeamIds.map(async (teamId) => {
-        const matches = await getMatches({ seasonId: season.id, teamId });
-        nextByTeam.set(teamId, matches.find((m) => m.status === "live") ?? matches.find((m) => m.status === "scheduled"));
-      }),
-    );
-  }
+  // Un hijo puede jugar en varios torneos a la vez: se miran todos los que están en curso
+  await Promise.all(
+    childTeamIds.map(async (teamId) => {
+      const matches = (await Promise.all(tournaments.map((t) => getMatches({ tournamentId: t.id, teamId })))).flat();
+      matches.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      nextByTeam.set(teamId, matches.find((m) => m.status === "live") ?? matches.find((m) => m.status === "scheduled"));
+    }),
+  );
 
   const followedTeams = teams.filter((t) => followed.has(t.id));
 
@@ -118,12 +118,12 @@ function ChildCard({ child, team, nextMatch, following }: { child: Child; team?:
               </span>
             </Link>
           ) : (
-            <p className="text-sm text-muted">Sin equipo esta temporada</p>
+            <p className="text-sm text-muted">Sin equipo en los torneos en curso</p>
           )}
         </div>
       </header>
 
-      {/* Estadísticas de la temporada */}
+      {/* Estadísticas del torneo */}
       <dl className="grid grid-cols-5 gap-1 rounded-2xl bg-surface-muted p-2 text-center">
         <Stat icon={Star} label="Estrellas" value={s.stars} tone="fill-amber-400 text-amber-400" />
         <Stat icon={Trophy} label="Goles" value={s.goals} />

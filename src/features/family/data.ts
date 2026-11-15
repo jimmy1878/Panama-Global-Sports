@@ -19,7 +19,7 @@ export type Child = {
   stats: { stars: number; goals: number; assists: number; saves: number; fairPlay: number; mvps: number };
 };
 
-export async function getMyFamily(currentSeasonId: string | null) {
+export async function getMyFamily(currentTournamentIds: string[]) {
   const user = await requireUser("/familia");
   const supabase = await createClient();
 
@@ -37,7 +37,7 @@ export async function getMyFamily(currentSeasonId: string | null) {
       .from("players")
       .select(
         `id, display_name, photo_path, photo_consent,
-         roster_entries(season_id, jersey_number, position, team:teams(id, name, short_name, category_id, primary_color, secondary_color))`,
+         roster_entries(tournament_id, jersey_number, position, team:teams(id, name, short_name, category_id, primary_color, secondary_color))`,
       )
       .in("id", playerIds),
     supabase.from("my_family_player_stars").select("*").in("player_id", playerIds),
@@ -47,8 +47,12 @@ export async function getMyFamily(currentSeasonId: string | null) {
 
   const children: Child[] = [];
   for (const p of players.data!) {
-    const roster = p.roster_entries.find((r) => r.season_id === currentSeasonId) ?? p.roster_entries.at(-1) ?? null;
-    const s = stars.data!.filter((x) => x.player_id === p.id && (!currentSeasonId || x.season_id === currentSeasonId));
+    // Un niño puede estar inscrito en varios torneos a la vez (academia y colegio)
+    const roster =
+      p.roster_entries.find((r) => currentTournamentIds.includes(r.tournament_id)) ?? p.roster_entries.at(-1) ?? null;
+    const s = stars.data!.filter(
+      (x) => x.player_id === p.id && (!currentTournamentIds.length || currentTournamentIds.includes(x.tournament_id!)),
+    );
     const sum = (k: "stars" | "goals" | "assists" | "saves" | "fair_play" | "mvps") => s.reduce((acc, x) => acc + (x[k] ?? 0), 0);
 
     let photoUrl: string | null = null;

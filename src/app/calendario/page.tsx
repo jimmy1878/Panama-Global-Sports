@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { EmptyState, PageTitle, Skeleton } from "@/components/ui/section";
 import { CategoryPicker } from "@/features/league/components/category-picker";
 import { MatchList } from "@/features/league/components/match-list";
-import { getCategories, getCurrentSeason, getMatches, resolveCategory, type Match } from "@/features/league/data";
+import { getCategories, getMatches, resolveCategory, resolveTournament, type Match } from "@/features/league/data";
 import { formatLongDay } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Calendario" };
@@ -14,18 +14,23 @@ export default function CalendarioPage({ searchParams }: PageProps<"/calendario"
       <PageTitle title="Calendario" subtitle="Partidos y resultados por categoría." />
       <Suspense fallback={<Skeleton className="h-96" />}>
         {searchParams.then((sp) => (
-          <CalendarContent cat={sp.cat} />
+          <CalendarContent cat={sp.cat} torneo={sp.torneo} />
         ))}
       </Suspense>
     </div>
   );
 }
 
-async function CalendarContent({ cat }: { cat: string | string[] | undefined }) {
-  const [season, categories, category] = await Promise.all([getCurrentSeason(), getCategories(), resolveCategory(cat)]);
-  if (!season || !category) return <EmptyState>No hay una temporada activa.</EmptyState>;
+type Filters = { cat: string | string[] | undefined; torneo: string | string[] | undefined };
 
-  const matches = await getMatches({ seasonId: season.id, categoryId: category.id });
+async function CalendarContent({ cat, torneo }: Filters) {
+  const [categories, category] = await Promise.all([getCategories(), resolveCategory(cat)]);
+  if (!category) return <EmptyState>Todavía no hay categorías configuradas.</EmptyState>;
+
+  const tournament = await resolveTournament(category.id, torneo);
+  if (!tournament) return <EmptyState>Esta categoría todavía no juega ningún torneo.</EmptyState>;
+
+  const matches = await getMatches({ tournamentId: tournament.id, categoryId: category.id });
 
   // Agrupar por jornada (o por día si no tiene jornada)
   const groups = new Map<string, Match[]>();
@@ -41,7 +46,7 @@ async function CalendarContent({ cat }: { cat: string | string[] | undefined }) 
         <strong className="text-foreground">
           {category.leagueName} · {category.code}
         </strong>{" "}
-        · {season.name}
+        · {tournament.name}
       </h2>
       {groups.size === 0 ? (
         <EmptyState>Todavía no hay partidos en esta categoría.</EmptyState>

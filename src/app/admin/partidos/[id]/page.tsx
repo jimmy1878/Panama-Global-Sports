@@ -42,10 +42,11 @@ async function MatchAdmin({ id }: { id: string }) {
 
   const [categories, allTeams, venues, users] = await Promise.all([
     getCategories(),
-    getTeams(match.season_id),
+    getTeams(match.tournament_id),
     getVenues(),
     getUsers(),
   ]);
+  const matchdayNumber = match.matchday?.number ?? null;
   const category = categories.find((c) => c.id === match.category_id);
   const teams = allTeams.filter((t) => t.categoryId === match.category_id);
   const teamName = (tid: string) => teams.find((t) => t.id === tid)?.name ?? "Equipo";
@@ -117,7 +118,7 @@ async function MatchAdmin({ id }: { id: string }) {
                   </Select>
                 </Field>
                 <Field name="matchday" label="Jornada">
-                  <TextInput name="matchday" type="number" min={1} max={99} defaultValue={match.matchday ?? ""} />
+                  <TextInput name="matchday" type="number" min={1} max={99} defaultValue={matchdayNumber ?? ""} />
                 </Field>
               </div>
               <Field name="status" label="Estado">

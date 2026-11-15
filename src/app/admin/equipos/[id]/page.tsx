@@ -28,7 +28,7 @@ async function TeamAdmin({ id }: { id: string }) {
   if (!isUuid(id)) notFound();
   const [detail, categories] = await Promise.all([getTeamDetail(id), getCategories()]);
   if (!detail) notFound();
-  const { team, seasonId, players } = detail;
+  const { team, tournamentId, players } = detail;
   const category = categories.find((c) => c.id === team.categoryId);
   const back = `/admin/equipos?cat=${category?.key ?? ""}`;
 
@@ -76,7 +76,7 @@ async function TeamAdmin({ id }: { id: string }) {
             <div className="rounded-2xl border border-border bg-surface p-4">
               <AdminForm action={addPlayer} submitLabel="Agregar al plantel" resetOnSuccess>
                 <input type="hidden" name="team_id" value={team.id} />
-                <input type="hidden" name="season_id" value={seasonId} />
+                <input type="hidden" name="tournament_id" value={tournamentId} />
                 <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
                   <Field name="first_name" label="Nombre">
                     <TextInput name="first_name" required autoComplete="off" placeholder="Mateo" />
