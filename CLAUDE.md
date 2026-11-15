@@ -51,7 +51,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 6. ✅ Notificaciones push (`/avisos`, resultado final al terminar, cron diario con recordatorios y cierre de votaciones). Desplegado en Vercel: https://panama-global-sports.vercel.app — 2026-11-14.
 7. ✅ Tarjetas de resultado para compartir (`next/og`, Instagram 1080×1350 y WhatsApp 1080×1080) — 2026-11-14.
 7b. ✅ **Reestructuración al modelo de torneos** (migración 8, `tournament_model`) — 2026-11-15. Sustituye la temporada única por organización → liga → circuito → torneo → categoría. Aplicada en Supabase y desplegada.
-8. Crónica con la API de Claude.
+8. ✅ Crónica con la API de Claude (`/admin/cronicas`) — 2026-11-15. Construida y desplegada, pero APAGADA hasta que haya `ANTHROPIC_API_KEY` con saldo.
 9. Galería (subida, procesamiento, etiquetado, revisión) — agrupada por **jornada**, no por partido.
 10. Certificados PDF al finalizar cada torneo.
 Futuro: **patrocinios** (el dueño los quiere pronto: es la fuente principal de ingresos), álbum de figuritas y fantasy.
@@ -171,6 +171,18 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Si un aviso falla con 401/403, la pareja VAPID del servidor no coincide con la de la suscripción. Subir variables a Vercel sin copiar a mano: `npx vercel@65.16.0 env add NOMBRE --environment production --force --yes` con el valor por stdin, y luego `redeploy` (las variables solo aplican tras desplegar).
 - `web-push` v4 es ESM: usar imports con nombre (`import { sendNotification, setVapidDetails } from "web-push"`).
 
+## Crónica automática (fase 8)
+
+- Al finalizar un partido, `after(() => generateChronicle(id))` (delegado y admin) pide el texto a la API de Claude y lo guarda como **borrador** en `match_chronicles`. Nunca publica: eso lo hace un admin en `/admin/cronicas`.
+- `src/features/chronicles/generate.ts` (solo servidor): modelo `claude-opus-5-5`, `effort: "low"`, con `fallbacks` por si un clasificador rechaza la petición (si la cuenta no los admite, repite la llamada sin ellos). Escribe con `createServiceClient()`.
+- **La privacidad no se delega en el prompt.** `src/features/chronicles/rules.ts` (archivo neutro, con pruebas) rechaza el texto si: no tiene entre 80 y 120 palabras; un nombre que enviamos aparece seguido de otra palabra con mayúscula que no es su inicial ("Carlos Méndez"); o aparece un "Nombre I." que no jugó ese partido. Si falla, se le dicen los problemas al modelo y se reintenta **una** vez; si sigue mal, no se guarda nada.
+- Las mismas reglas se revalidan al publicar, porque el admin puede editar el texto a mano.
+- Al modelo solo le llegan nombres de `public_players` (nombre + inicial), equipos, marcador, minutos y tipo de evento. Nunca apellidos ni datos privados.
+- En categorías con `recognition_mode = 'team_stars'`, los eventos van sin nombre y el prompt pide una crónica centrada en los equipos.
+- Sin `ANTHROPIC_API_KEY` no se genera nada y **no se rompe nada**: finalizar el partido funciona igual. La clave se crea en https://platform.claude.com/settings/keys y necesita saldo; hay que subirla también a Vercel.
+- Costo real: ~US$ 0.018 por crónica, ~US$ 13 al año con 750 partidos. Conviene poner un tope de gasto en la consola de Anthropic.
+- Pruebas: `npm run test:rules`. Añadir un caso por cada regla nueva.
+
 ## Comandos
 
 ```powershell
@@ -178,6 +190,7 @@ npm run dev     # servidor local en http://localhost:3000
 npm run build   # build de producción (correr antes de dar algo por terminado)
 npm run lint
 npm run test:db # pruebas de la base de datos (PGlite simula Supabase)
+npm run test:rules # reglas de las crónicas (privacidad y longitud)
 npm run icons   # regenera los iconos de la PWA
 npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase login` una vez en tu terminal)
 ```
