@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 import { check, parseForm, refreshPublic, runAdmin, type ActionState } from "@/features/admin/action";
+import { generateChronicle } from "@/features/chronicles/generate";
 import { sendFinalResult } from "@/features/notifications/match-alerts";
 
 /** Fecha y hora escritas en Panamá (UTC−5, sin horario de verano) → ISO. */
@@ -112,7 +113,10 @@ export async function updateMatch(_prev: ActionState, formData: FormData): Promi
     );
     refreshPublic("matches", `match-${m.id}`);
     // Resultado manual: también avisa (notification_log evita repetirlo).
-    if (finished) after(() => sendFinalResult(m.id).catch((e) => console.error("Aviso de resultado", e)));
+    if (finished) {
+      after(() => sendFinalResult(m.id).catch((e) => console.error("Aviso de resultado", e)));
+      after(() => generateChronicle(m.id).catch((e) => console.error("Crónica", e)));
+    }
     return { ok: true, message: "Partido actualizado." };
   });
 }

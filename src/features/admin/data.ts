@@ -176,3 +176,25 @@ export async function getMatchAdmin(matchId: string) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Crónicas para revisar: los borradores primero, luego las publicadas.
+ * Incluye los partidos terminados que todavía no tienen crónica, para poder
+ * pedirla a mano si la generación automática falló.
+ */
+export async function getChronicles() {
+  const supabase = await adminClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select(
+      `id, starts_at, home_score, away_score,
+       home:teams!matches_home_team_fkey(name), away:teams!matches_away_team_fkey(name),
+       category:categories(code, league:leagues(name)),
+       chronicle:match_chronicles(status, body, generated_body, model, generated_at, published_at)`,
+    )
+    .eq("status", "finished")
+    .order("starts_at", { ascending: false })
+    .limit(60);
+  if (error) throw error;
+  return data;
+}
