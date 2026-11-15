@@ -372,6 +372,42 @@ export async function getMatches(opts: { tournamentId: string; categoryId?: stri
   return (data as unknown as MatchRow[]).map(toMatch);
 }
 
+/**
+ * Partidos de HOY en hora de Panamá, de todos los torneos en curso: los que se
+ * juegan, los que ya terminaron y los que faltan. Alimenta la barra "Hoy".
+ *
+ * Se añade cualquier partido EN VIVO aunque su fecha sea otra: si el delegado
+ * tiene un marcador abierto, tiene que verse arriba, no esconderse porque el
+ * calendario diga que era de ayer.
+ */
+export async function getTodayMatches(tournamentIds: string[]): Promise<Match[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("matches");
+
+  if (!tournamentIds.length) return [];
+  // El día en Panamá (UTC−5, sin horario de verano) va de 05:00 a 05:00 UTC.
+  const today = new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
+  const from = `${today}T05:00:00.000Z`;
+  const to = new Date(Date.parse(from) + 24 * 3600_000).toISOString();
+
+  const supabase = createPublicClient();
+  const [delDia, enVivo] = await Promise.all([
+    supabase.from("matches").select(MATCH_SELECT).in("tournament_id", tournamentIds)
+      .gte("starts_at", from).lt("starts_at", to).order("starts_at").order("id"),
+    supabase.from("matches").select(MATCH_SELECT).in("tournament_id", tournamentIds)
+      .eq("status", "live").order("starts_at"),
+  ]);
+  for (const r of [delDia, enVivo]) if (r.error) fail("los partidos de hoy", r.error);
+
+  const porId = new Map<string, Match>();
+  // Primero los que se juegan: encabezan la barra
+  for (const row of [...(enVivo.data ?? []), ...(delDia.data ?? [])] as unknown as MatchRow[]) {
+    if (!porId.has(row.id)) porId.set(row.id, toMatch(row));
+  }
+  return [...porId.values()];
+}
+
 /** Para Inicio: en vivo, próximos y últimos resultados de todos los torneos en curso. */
 export async function getHomeMatches(tournamentIds: string[], limit = 6) {
   "use cache";

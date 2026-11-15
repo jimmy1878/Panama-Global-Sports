@@ -3,14 +3,23 @@ import { Suspense } from "react";
 import { CalendarDays, ChartColumn, Radio } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { LiveRefresher } from "@/components/live/live-refresher";
+import { LiveHero } from "@/features/league/components/live-hero";
 import { MatchCard } from "@/features/league/components/match-list";
-import { getCategories, getCurrentTournaments, getHomeMatches, type Category, type Match } from "@/features/league/data";
+import {
+  getCategories,
+  getCurrentTournaments,
+  getHomeMatches,
+  type Category,
+  type Match,
+  type Tournament,
+} from "@/features/league/data";
 
 export default function Home() {
   return (
     <div className="space-y-8 md:space-y-10">
-      <Suspense fallback={<Skeleton className="h-36 md:h-44" />}>
-        <TournamentsHero />
+      {/* Si hay un partido en juego, manda él; si no, la presentación de los torneos */}
+      <Suspense fallback={<Skeleton className="h-56 md:h-72" />}>
+        <TopOfPage />
       </Suspense>
       <Suspense fallback={<HomeSkeleton />}>
         <HomeMatches />
@@ -22,8 +31,31 @@ export default function Home() {
   );
 }
 
-async function TournamentsHero() {
+/** El partido en vivo si lo hay; si no, los torneos en curso. */
+async function TopOfPage() {
   const tournaments = await getCurrentTournaments();
+  if (!tournaments.length) return <TournamentsHero tournaments={[]} />;
+
+  const [{ live }, categories] = await Promise.all([
+    getHomeMatches(tournaments.map((t) => t.id)),
+    getCategories(),
+  ]);
+  if (!live.length) return <TournamentsHero tournaments={tournaments} />;
+
+  // El <LiveRefresher> de HomeMatches ya refresca toda la página: montar otro
+  // aquí intentaría suscribirse dos veces al mismo canal de Realtime y falla.
+  const [first, ...others] = live;
+  return (
+    <LiveHero
+      match={first}
+      others={others}
+      category={categories.find((c) => c.id === first.categoryId)}
+      tournament={tournaments.find((t) => t.id === first.tournamentId)}
+    />
+  );
+}
+
+function TournamentsHero({ tournaments }: { tournaments: Tournament[] }) {
   return (
     <section className="bg-brand-gradient relative overflow-hidden rounded-3xl border border-gold/25 p-6 text-white md:p-10">
       <div aria-hidden className="absolute -right-10 -bottom-16 size-48 rounded-full bg-white/10 md:size-72" />
