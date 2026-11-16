@@ -27,6 +27,7 @@ export type Tournament = {
   name: string; // "Academias · Clausura 2026"
   year: number;
   status: TournamentStatus;
+  circuitId: string;
   circuitName: string; // "Academias"
   typeName: string; // "Clausura"
   startsOn: string;
@@ -106,7 +107,7 @@ export const isUuid = (value: string) => UUID_RE.test(value);
 // ---------------------------------------------------------------------------
 // Torneos y categorías
 // ---------------------------------------------------------------------------
-const TOURNAMENT_SELECT = `id, league_id, slug, name, year, status, starts_on, ends_on, registration_closes_on,
+const TOURNAMENT_SELECT = `id, league_id, circuit_id, slug, name, year, status, starts_on, ends_on, registration_closes_on,
   league:leagues!inner(name),
   circuit:circuits!inner(name),
   type:tournament_types!inner(name)`;
@@ -120,6 +121,7 @@ type TournamentRow = {
   status: TournamentStatus;
   starts_on: string;
   ends_on: string;
+  circuit_id: string;
   registration_closes_on: string | null;
   league: { name: string };
   circuit: { name: string };
@@ -135,6 +137,7 @@ function toTournament(t: TournamentRow): Tournament {
     name: t.name,
     year: t.year,
     status: t.status,
+    circuitId: t.circuit_id,
     circuitName: t.circuit.name,
     typeName: t.type.name,
     startsOn: t.starts_on,
@@ -865,4 +868,14 @@ export async function getRecentForm(
   }
   for (const id of Object.keys(form)) form[id] = form[id].slice(-5);
   return form;
+}
+
+/** La organización (una sola fila): es el ámbito más general de un patrocinio. */
+export async function getOrganizationId(): Promise<string | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("tournaments");
+
+  const { data } = await createPublicClient().from("organizations").select("id").limit(1).maybeSingle();
+  return data?.id ?? null;
 }

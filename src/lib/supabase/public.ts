@@ -21,3 +21,10 @@ export function teamLogoUrl(path: string | null): string | null {
   const { url } = requireSupabaseEnv();
   return `${url}/storage/v1/object/public/team-logos/${path}`;
 }
+
+/** URL pública de un logo del bucket "sponsor-logos" (público). */
+export function sponsorLogoUrl(path: string | null): string | null {
+  if (!path) return null;
+  const { url } = requireSupabaseEnv();
+  return `${url}/storage/v1/object/public/sponsor-logos/${path}`;
+}

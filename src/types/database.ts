@@ -1325,6 +1325,286 @@ export type Database = {
           },
         ]
       }
+      sponsors: {
+        Row: {
+          active: boolean
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string
+          id: string
+          logo_dark_path: string | null
+          logo_path: string | null
+          name: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          active?: boolean
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          logo_dark_path?: string | null
+          logo_path?: string | null
+          name: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          active?: boolean
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          logo_dark_path?: string | null
+          logo_path?: string | null
+          name?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      sponsorship_contracts: {
+        Row: {
+          amount: number | null
+          created_at: string
+          ends_on: string
+          id: string
+          notes: string | null
+          sponsor_id: string
+          starts_on: string
+          status: Database["public"]["Enums"]["contract_status"]
+          tier_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          ends_on: string
+          id?: string
+          notes?: string | null
+          sponsor_id: string
+          starts_on: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          tier_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          ends_on?: string
+          id?: string
+          notes?: string | null
+          sponsor_id?: string
+          starts_on?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          tier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsorship_contracts_sponsor_id_fkey"
+            columns: ["sponsor_id"]
+            isOneToOne: false
+            referencedRelation: "sponsors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorship_contracts_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "sponsorship_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsorship_metrics: {
+        Row: {
+          clicks: number
+          day: string
+          impressions: number
+          placement_id: string
+        }
+        Insert: {
+          clicks?: number
+          day: string
+          impressions?: number
+          placement_id: string
+        }
+        Update: {
+          clicks?: number
+          day?: string
+          impressions?: number
+          placement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsorship_metrics_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "active_sponsor_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorship_metrics_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "sponsorship_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsorship_placements: {
+        Row: {
+          contract_id: string
+          created_at: string
+          ends_on: string
+          exclusive: boolean
+          id: string
+          image_path: string | null
+          link_url: string | null
+          priority: number
+          rotation_weight: number
+          scope: Database["public"]["Enums"]["sponsorship_scope"]
+          scope_id: string
+          slot_id: string
+          starts_on: string
+          text: string | null
+          updated_at: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          ends_on: string
+          exclusive?: boolean
+          id?: string
+          image_path?: string | null
+          link_url?: string | null
+          priority?: number
+          rotation_weight?: number
+          scope: Database["public"]["Enums"]["sponsorship_scope"]
+          scope_id: string
+          slot_id: string
+          starts_on: string
+          text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          ends_on?: string
+          exclusive?: boolean
+          id?: string
+          image_path?: string | null
+          link_url?: string | null
+          priority?: number
+          rotation_weight?: number
+          scope?: Database["public"]["Enums"]["sponsorship_scope"]
+          scope_id?: string
+          slot_id?: string
+          starts_on?: string
+          text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsorship_placements_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "sponsorship_contract_report"
+            referencedColumns: ["contract_id"]
+          },
+          {
+            foreignKeyName: "sponsorship_placements_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "sponsorship_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorship_placements_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "sponsorship_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsorship_slots: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          description: string | null
+          format: string | null
+          height_px: number | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          width_px: number | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          description?: string | null
+          format?: string | null
+          height_px?: number | null
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          width_px?: number | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          description?: string | null
+          format?: string | null
+          height_px?: number | null
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          width_px?: number | null
+        }
+        Relationships: []
+      }
+      sponsorship_tiers: {
+        Row: {
+          created_at: string
+          exclusive: boolean
+          id: string
+          name: string
+          reference_price: number | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exclusive?: boolean
+          id?: string
+          name: string
+          reference_price?: number | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exclusive?: boolean
+          id?: string
+          name?: string
+          reference_price?: number | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sports: {
         Row: {
           created_at: string
@@ -1673,6 +1953,23 @@ export type Database = {
       }
     }
     Views: {
+      active_sponsor_placements: {
+        Row: {
+          id: string | null
+          image_path: string | null
+          link_url: string | null
+          logo_dark_path: string | null
+          priority: number | null
+          rotation_weight: number | null
+          scope: Database["public"]["Enums"]["sponsorship_scope"] | null
+          scope_id: string | null
+          slot_code: string | null
+          slot_format: string | null
+          sponsor_name: string | null
+          text: string | null
+        }
+        Relationships: []
+      }
       media_review_queue: {
         Row: {
           blocking_tags: number | null
@@ -1933,6 +2230,21 @@ export type Database = {
         }
         Relationships: []
       }
+      sponsorship_contract_report: {
+        Row: {
+          amount: number | null
+          clicks: number | null
+          contract_id: string | null
+          ends_on: string | null
+          impressions: number | null
+          placements: number | null
+          sponsor_name: string | null
+          starts_on: string | null
+          status: Database["public"]["Enums"]["contract_status"] | null
+          tier_name: string | null
+        }
+        Relationships: []
+      }
       standings: {
         Row: {
           category_id: string | null
@@ -2051,6 +2363,10 @@ export type Database = {
         }[]
       }
       media_blocking_tags: { Args: { p_media_id: string }; Returns: number }
+      record_sponsor_event: {
+        Args: { p_kind: string; p_placement: string }
+        Returns: undefined
+      }
       set_match_mvp: {
         Args: { p_match_id: string; p_player_id: string }
         Returns: undefined
@@ -2064,6 +2380,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "delegate" | "parent"
       chronicle_status: "draft" | "published"
+      contract_status: "borrador" | "activo" | "vencido"
       league_gender: "boys" | "girls" | "mixed"
       match_status:
         | "scheduled"
@@ -2076,6 +2393,12 @@ export type Database = {
       mvp_mode: "official" | "parent_vote"
       notification_kind: "match_reminder" | "final_result" | "album_packs"
       recognition_mode: "team_stars" | "individual_ranking"
+      sponsorship_scope:
+        | "organizacion"
+        | "liga"
+        | "circuito"
+        | "torneo"
+        | "categoria"
       tournament_status: "proximo" | "inscripciones" | "en_curso" | "finalizado"
     }
     CompositeTypes: {
@@ -2206,6 +2529,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "delegate", "parent"],
       chronicle_status: ["draft", "published"],
+      contract_status: ["borrador", "activo", "vencido"],
       league_gender: ["boys", "girls", "mixed"],
       match_status: ["scheduled", "live", "finished", "postponed", "cancelled"],
       media_kind: ["photo", "video"],
@@ -2213,6 +2537,13 @@ export const Constants = {
       mvp_mode: ["official", "parent_vote"],
       notification_kind: ["match_reminder", "final_result", "album_packs"],
       recognition_mode: ["team_stars", "individual_ranking"],
+      sponsorship_scope: [
+        "organizacion",
+        "liga",
+        "circuito",
+        "torneo",
+        "categoria",
+      ],
       tournament_status: ["proximo", "inscripciones", "en_curso", "finalizado"],
     },
   },

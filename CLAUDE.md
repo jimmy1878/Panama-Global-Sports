@@ -53,7 +53,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 7b. ✅ **Reestructuración al modelo de torneos** (migración 8, `tournament_model`) — 2026-11-15. Sustituye la temporada única por organización → liga → circuito → torneo → categoría. Aplicada en Supabase y desplegada.
 8. ✅ Crónica con la API de Claude (`/admin/cronicas`) — 2026-11-15. Construida y desplegada, pero APAGADA hasta que haya `ANTHROPIC_API_KEY` con saldo.
 9. ◐ Galería de FOTOS (`/galeria`, subida en la página del partido, revisión en `/admin/galeria`) — 2026-11-15. Agrupada por **jornada**. **El video queda fuera**: sigue sin decidirse cómo procesarlo.
-10. ◐ **Patrocinios** (migración 9, `sponsorships`) — 2026-11-15. La base de datos está escrita y probada; **falta aplicarla en Supabase**, regenerar los tipos y construir el panel y los espacios públicos.
+10. ✅ **Patrocinios** (migración 9, `sponsorships`) — 2026-11-15. Aplicada en Supabase. Panel en `/admin/patrocinios` y espacios en la página de categoría y en la de partido. Falta vender: no hay ningún patrocinador cargado.
 11. Certificados PDF al finalizar cada torneo.
 Futuro: álbum de figuritas y fantasy.
 
@@ -198,6 +198,10 @@ Es la **fuente principal de ingresos**. Un patrocinador se asigna a un espacio d
 - El público **no lee ninguna tabla de patrocinios**: lee la vista `active_sponsor_placements`, que solo devuelve lo vigente hoy de contratos activos y nunca montos ni contactos. "Hoy" es el día en **Panamá** (UTC−5), no el del servidor: de noche no son el mismo día.
 - Las métricas se escriben solo por `record_sponsor_event(placement, 'impression' | 'click')`, nunca con una política abierta. El reporte por contrato sale de `sponsorship_contract_report` (solo admin).
 - Logos en el bucket `sponsor-logos` (público, como los de los equipos).
+- **Dónde se pintan hoy**: `liga_header` y `torneo_header` en la cabecera de la pantalla de categoría, y `partido_pagina` bajo el marcador. El `<SponsorSlot>` llama a `connection()` a propósito: si se prerenderizara, la rotación quedaría congelada en el build y un patrocinador se llevaría todas las impresiones.
+- La **impresión** la avisa el navegador con `sendBeacon` a `/api/patrocinio/:id/vista`; el **clic** pasa por `/api/patrocinio/:id/ir`, que cuenta y luego redirige, y lee el destino de la base (nunca de la URL) y solo si es http(s).
+- Panel en `/admin/patrocinios`: contratos con sus impresiones y clics, asignación de espacios, marcas y cambio de estado. El ámbito se elige en un solo desplegable (`liga:<uuid>`), agrupado por tipo.
+- Tras escribir, `refreshPublic("sponsors")`; las lecturas públicas van con `cacheTag("sponsors")`.
 - Pendiente de la especificación: el rol **Comercial** (patrocinios y reportes, sin ver datos de jugadores). Hoy solo el admin administra patrocinios; añadirlo es un valor más en `app_role` y tocar las políticas.
 
 ## Crónica automática (fase 8)

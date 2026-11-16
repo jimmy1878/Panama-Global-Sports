@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { BrandBackdrop } from "@/components/layout/brand-backdrop";
+import { sponsorContext } from "@/features/sponsors/context";
+import { SponsorSlot } from "@/features/sponsors/slot";
 import type { Category, Tournament } from "../data";
 import { CATEGORY_VIEWS, categoryPath, type CategoryView } from "../paths";
 
@@ -60,6 +63,11 @@ export function CategoryHeader({
         <TournamentPicker current={tournament} others={others} category={category} view={view} />
       </div>
 
+      {/* Patrocinio de la liga y del torneo. Si nadie los tiene, no hay franja. */}
+      <Suspense fallback={null}>
+        <SponsorStrip category={category} tournament={tournament} />
+      </Suspense>
+
       {/* Pestañas: en móvil se desplazan a lo ancho, como en el diseño */}
       <nav aria-label="Secciones de la categoría" className="relative mt-4 flex gap-1 overflow-x-auto px-4 md:px-6">
         {CATEGORY_VIEWS.map((v) => {
@@ -79,6 +87,20 @@ export function CategoryHeader({
         })}
       </nav>
     </header>
+  );
+}
+
+/**
+ * Los dos espacios de patrocinio de esta pantalla. Van juntos, alineados a la
+ * derecha, y la franja entera desaparece si ninguno está vendido.
+ */
+async function SponsorStrip({ category, tournament }: { category: Category; tournament: Tournament }) {
+  const context = await sponsorContext({ category, tournament });
+  return (
+    <div className="relative mt-3 flex flex-wrap items-center justify-end gap-x-6 gap-y-2 px-4 empty:mt-0 md:px-6">
+      <SponsorSlot code="liga_header" context={context} />
+      <SponsorSlot code="torneo_header" context={context} />
+    </div>
   );
 }
 

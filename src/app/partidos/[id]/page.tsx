@@ -10,7 +10,9 @@ import { LiveRefresher } from "@/components/live/live-refresher";
 import { MvpVoteSection } from "@/features/family/sections";
 import { MatchGallerySection } from "@/features/gallery/sections";
 import { StatusBadge } from "@/features/league/components/match-list";
-import { getMatchDetail, isUuid, type MatchEvent, type Team } from "@/features/league/data";
+import { getMatchDetail, getTournaments, isUuid, type Category, type MatchEvent, type Team } from "@/features/league/data";
+import { sponsorContext } from "@/features/sponsors/context";
+import { SponsorSlot } from "@/features/sponsors/slot";
 import { ShareCard } from "@/features/share/share-card";
 import { formatLongDay, formatTime } from "@/lib/format";
 
@@ -89,6 +91,11 @@ async function MatchContent({ id }: { id: string }) {
             </li>
           ) : null}
         </ul>
+
+        {/* Patrocinador de la página de partido, junto al marcador */}
+        <Suspense fallback={null}>
+          <MatchSponsor tournamentId={match.tournamentId} category={category} />
+        </Suspense>
       </section>
 
       {/* Tarjeta para redes: en cuanto hay marcador (en vivo o final) */}
@@ -196,5 +203,19 @@ function Timeline({ events, home, away }: { events: MatchEvent[]; home: Team; aw
         );
       })}
     </ol>
+  );
+}
+
+/**
+ * El patrocinador de la página de partido. Necesita el torneo entero (no solo
+ * su id) porque la regla mira la cadena completa de ámbitos.
+ */
+async function MatchSponsor({ tournamentId, category }: { tournamentId: string; category: Category | null }) {
+  const tournament = (await getTournaments()).find((t) => t.id === tournamentId);
+  const context = await sponsorContext({ tournament, category });
+  return (
+    <div className="mt-4 flex justify-center border-t border-border pt-4 empty:mt-0 empty:border-0 empty:pt-0">
+      <SponsorSlot code="partido_pagina" context={context} variant="match" tone="light" />
+    </div>
   );
 }
