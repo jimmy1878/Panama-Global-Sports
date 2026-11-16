@@ -178,6 +178,9 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - Nada de lo que se ve sale de rutas públicas: siempre URLs firmadas de 1 h, y quién ve qué lo decide `can_view_media` en la BD, no el código.
 - El bloqueo por consentimiento lo impone el trigger `guard_media_status`: si en la foto hay un niño sin `photo_consent` y sin `redacted`, **no se puede aprobar**. El admin recorta la foto y marca "Ya lo recorté". Si un padre retira el consentimiento después, la foto vuelve sola a `media_review_queue`.
 - Galería pública en `/galeria` agrupada por **jornada** (`matchdays`), no por partido: es como la vive una familia. Solo con sesión.
+- La pantalla sigue el mockup: filtro de liga (Todas / Boys / Girls), lista de torneos con fotos (el actual arriba y los anteriores debajo) y un **visor** con la foto grande, quiénes aparecen y los botones de descargar y compartir. Los filtros van en la URL (`?torneo=<slug>&liga=boys`); elegir una foto es estado del cliente, porque las URLs firmadas ya viajaron con la página.
+- **El slug de un torneo no es único**: Boys y Girls tienen cada uno su "academias-clausura-2026". Por eso el selector agrupa por slug y `getGalleryByMatchday` recibe una lista de ids, no uno solo.
+- "Aparecen: …" sale de `media_tags` con `redacted = false` y nombres de `public_players`. A un niño recortado **no se le nombra**: decirlo contaría lo que la foto ya no cuenta.
 - **Video: fuera de alcance por ahora.** `sharp` solo procesa imágenes; el video necesita ffmpeg o un servicio externo y las funciones de Vercel tienen límites. La subida rechaza videos con un mensaje claro y `processMedia` marca como rechazado cualquier `kind <> 'photo'`. Decidir antes de retomarlo.
 - Pruebas: `npm run test:media` comprueba con el mismo pipeline que una foto con GPS sale sin un solo metadato. Es la garantía de privacidad de esta fase: si se toca `processMedia`, correrla.
 
