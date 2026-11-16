@@ -814,3 +814,52 @@ export async function getWeekMvp(tournamentIds: string[]): Promise<WeekMvp | nul
     stats: { goals: count("goal"), assists: count("assist"), fairPlay: count("fair_play") },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Pantalla de categoría (/ligas/:liga/:torneo/:categoria)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resuelve la ruta legible de la pantalla central: liga + torneo + categoría.
+ * `liga` es el género de la liga ("boys"), `categoria` el código ("u10") y
+ * `torneo` el slug ("academias-clausura-2026"). Devuelve null si algo no existe
+ * o si esa categoría no se juega en ese torneo (la página hace notFound()).
+ */
+export async function resolveCategoryRoute(liga: string, torneo: string, categoria: string) {
+  const key = `${liga.toLowerCase()}-${categoria.toLowerCase()}`;
+  const category = (await getCategories()).find((c) => c.key === key);
+  if (!category) return null;
+
+  const tournaments = await getTournamentsForCategory(category.id);
+  const tournament = tournaments.find((t) => t.slug === torneo.toLowerCase());
+  if (!tournament) return null;
+
+  return { category, tournament, tournaments };
+}
+
+export type FormResult = "G" | "E" | "P";
+
+/**
+ * Los últimos 5 resultados de cada equipo de la categoría, del más antiguo al
+ * más reciente (como se leen en la tabla). Se calcula desde los partidos
+ * finalizados: no hay nada guardado a mano.
+ */
+export async function getRecentForm(
+  tournamentId: string,
+  categoryId: string,
+): Promise<Record<string, FormResult[]>> {
+  const matches = (await getMatches({ tournamentId, categoryId })).filter(
+    (m) => m.status === "finished" && m.homeScore !== null && m.awayScore !== null,
+  );
+
+  const form: Record<string, FormResult[]> = {};
+  for (const m of matches) {
+    const home = m.homeScore ?? 0;
+    const away = m.awayScore ?? 0;
+    const result = (a: number, b: number): FormResult => (a > b ? "G" : a < b ? "P" : "E");
+    (form[m.home.id] ??= []).push(result(home, away));
+    (form[m.away.id] ??= []).push(result(away, home));
+  }
+  for (const id of Object.keys(form)) form[id] = form[id].slice(-5);
+  return form;
+}

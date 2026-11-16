@@ -24,7 +24,7 @@ export type NavItem = {
  * una página vacía.
  */
 export const DESKTOP_NAV: NavItem[] = [
-  { href: "/equipos", label: "Torneos", icon: Trophy },
+  { href: "/ligas", label: "Torneos", icon: Trophy },
   { href: "/#en-vivo", label: "En vivo", icon: Radio },
   { href: "/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/galeria", label: "Galería", icon: Images },

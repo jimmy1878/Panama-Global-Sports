@@ -7,11 +7,13 @@ import { StandingsTable } from "@/features/league/components/standings";
 import {
   getCategories,
   getLeaders,
+  getRecentForm,
   getStandings,
   getTeamRecognitions,
   resolveCategory,
   resolveTournament,
 } from "@/features/league/data";
+import { categoryPath } from "@/features/league/paths";
 
 export const metadata: Metadata = { title: "Estadísticas" };
 
@@ -36,8 +38,9 @@ async function StatsContent({ cat, torneo }: { cat: string | string[] | undefine
   if (!tournament) return <EmptyState>Esta categoría todavía no juega ningún torneo.</EmptyState>;
 
   const individual = category.recognitionMode === "individual_ranking";
-  const [standings, leaders, recognitions] = await Promise.all([
+  const [standings, form, leaders, recognitions] = await Promise.all([
     getStandings(tournament.id, category.id),
+    getRecentForm(tournament.id, category.id),
     individual ? getLeaders(tournament.id, category.id) : Promise.resolve({}),
     individual ? Promise.resolve([]) : getTeamRecognitions(tournament.id, category.id),
   ]);
@@ -47,8 +50,16 @@ async function StatsContent({ cat, torneo }: { cat: string | string[] | undefine
       <CategoryPicker categories={categories} current={category} basePath="/estadisticas" />
       {/* Desktop: posiciones a la izquierda, líderes debajo a lo ancho; móvil: una columna. */}
       <div className="space-y-8">
-        <Section title={`Posiciones · ${category.leagueName} ${category.code}`}>
-          {standings.length ? <StandingsTable rows={standings} /> : <EmptyState>Sin equipos todavía.</EmptyState>}
+        <Section
+          title={`Posiciones · ${category.leagueName} ${category.code}`}
+          href={categoryPath(category, tournament)}
+          linkLabel="Ver la categoría"
+        >
+          {standings.length ? (
+            <StandingsTable rows={standings} form={form} />
+          ) : (
+            <EmptyState>Sin equipos todavía.</EmptyState>
+          )}
         </Section>
         {individual ? (
           <Section title="Líderes del torneo">

@@ -138,7 +138,7 @@ async function CurrentTournaments() {
     getTournamentProgress(ids),
   ]);
   return (
-    <Section title="Torneos en curso" href="/equipos" linkLabel="Ver equipos">
+    <Section title="Torneos en curso" href="/ligas" linkLabel="Ver todos">
       <TournamentCards
         tournaments={tournaments}
         categoriesByTournament={categoriesByTournament}

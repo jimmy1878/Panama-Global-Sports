@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { Category, Tournament } from "@/features/league/data";
+import { categoryPath } from "@/features/league/paths";
 
 /**
  * Una tarjeta por liga con su torneo actual y sus categorías. Si la liga tiene
@@ -68,7 +69,7 @@ export function TournamentCards({
                 {categories.map((category) => (
                   <li key={category.id}>
                     <Link
-                      href={`/estadisticas?cat=${category.key}&torneo=${main.slug}`}
+                      href={categoryPath(category, main)}
                       className="grid min-h-11 min-w-16 place-items-center rounded-xl bg-white px-3 font-display text-lg"
                       style={{ color: girls ? "var(--girls)" : "var(--navy)" }}
                     >

@@ -58,7 +58,7 @@ Futuro: **patrocinios** (el dueño los quiere pronto: es la fuente principal de 
 
 Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
 Decisión 2026-11-15: la temporada es el año vigente (dueño), y el modelo pasa a torneos.
-Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); rutas públicas nuevas (`/ligas/:liga/:torneo/:categoria`, historial) y colores de marca en la interfaz, que hoy siguen siendo los de la bandera; el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
+Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); si los primeros puestos clasifican a una final (el mockup lo dice, el dueño no lo ha confirmado, y por eso la tabla no resalta ningún puesto); el historial (`/historial`); el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
 Ideas pospuestas: reloj del partido guardado en la BD con botones "Medio tiempo / Reanudar" (hoy el minuto corre en tiempo real desde el inicio y el ajuste −/+ del delegado es local y el público no lo ve).
 
 ### Base de datos (`supabase/migrations/`)
@@ -239,6 +239,12 @@ No es la versión desktop encogida. Cada vista se diseña **dos veces**:
 - Solo puede haber **un `<LiveRefresher>` por página**: dos se suscriben al mismo canal de Realtime y el segundo lanza "cannot add postgres_changes callbacks after subscribe()".
 - El minuto en vivo (`<LiveMinute>`) se oculta pasados 150 minutos: un marcador que el delegado dejó abierto anunciaba "2974'".
 - `<BrandBackdrop>` dibuja el balón y las vetas de luz en SVG; acompaña a `bg-brand-gradient` en el header.
+- **Pantalla de categoría** (`/ligas/:liga/:torneo/:categoria`, p. ej. `/ligas/boys/academias-copa-navidad-2026/u10`): la página central del diseño, donde una familia ve todo lo de su hijo. `liga` es el género de la liga, `categoria` el código en minúsculas y `torneo` el slug. Las rutas se arman con `categoryPath()` (`src/features/league/paths.ts`, archivo neutro), nunca a mano.
+  - Cinco pestañas en `?v=`: Tabla (posiciones + líderes + próxima jornada), Calendario, Resultados, Líderes y Equipos. `?v=tabla` se omite de la URL.
+  - `resolveCategoryRoute()` devuelve categoría + torneo + los torneos de esa categoría; si algo no existe, `notFound()`. Con PPR el HTTP sigue siendo 200 y el 404 llega en el stream: es lo normal en Next 16.
+  - La forma ("Últimos 5") sale de `getRecentForm()`, calculada desde los partidos finalizados. En móvil va debajo del nombre del equipo; en desktop tiene su propia columna.
+  - `/ligas` es el índice de torneos y es a donde apunta "Torneos" en el menú de desktop. Los torneos que la migración 8 dejó sin categorías (Apertura y Clausura, que no traían datos propios) aparecen ahí como finalizados y vacíos: es real, no un error.
+  - `/estadisticas` y `/equipos` siguen existiendo (están en el menú móvil) y ahora enlazan a esta pantalla.
 - Respetar `env(safe-area-inset-bottom)` en el menú inferior (iPhone).
 - **Identidad (2026-11-15)**: navy y dorado, muestreados del logotipo. Tokens en `globals.css`, nunca hex sueltos en componentes:
   - `navy` `#010f2a` y `navy-soft` `#001743` — fondo de marca. La clase `bg-brand-gradient` reproduce el degradado que el logo trae debajo de sí: se usa en el header, el menú inferior, el hero y las piezas de marca.

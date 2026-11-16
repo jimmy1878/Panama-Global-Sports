@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { ChevronRight } from "lucide-react";
-import { EmptyState, PageTitle, Skeleton } from "@/components/ui/section";
-import { TeamCrest } from "@/components/ui/team-crest";
+import { EmptyState, PageTitle, Section, Skeleton } from "@/components/ui/section";
 import { CategoryPicker } from "@/features/league/components/category-picker";
+import { TeamGrid } from "@/features/league/components/team-grid";
 import { getCategories, getStandings, resolveCategory, resolveTournament } from "@/features/league/data";
+import { categoryPath } from "@/features/league/paths";
 
 export const metadata: Metadata = { title: "Equipos" };
 
@@ -30,36 +29,19 @@ async function TeamsContent({ cat, torneo }: { cat: string | string[] | undefine
   if (!tournament) return <EmptyState>Esta categoría todavía no juega ningún torneo.</EmptyState>;
 
   // La tabla de posiciones trae a todos los equipos de la categoría con su puesto.
-  const standings = await getStandings(tournament.id, category.id);
-  const teams = [...standings].sort((a, b) => a.team.name.localeCompare(b.team.name, "es"));
+  const teams = await getStandings(tournament.id, category.id);
+
 
   return (
     <>
       <CategoryPicker categories={categories} current={category} basePath="/equipos" />
-      {teams.length === 0 ? (
-        <EmptyState>Todavía no hay equipos en esta categoría.</EmptyState>
-      ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {teams.map(({ team, position, points, played }) => (
-            <li key={team.id}>
-              <Link
-                href={`/equipos/${team.id}`}
-                className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-brand-blue active:bg-surface-muted"
-              >
-                <TeamCrest team={team} size="lg" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-bold">{team.name}</span>
-                  <span className="block text-sm text-muted">
-                    {category.code} · {position}º lugar · {points} pts
-                    {played ? "" : " · sin partidos"}
-                  </span>
-                </span>
-                <ChevronRight className="size-5 text-muted" aria-hidden />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <Section
+        title={`${category.leagueName} · ${category.code}`}
+        href={categoryPath(category, tournament)}
+        linkLabel="Ver la categoría"
+      >
+        <TeamGrid rows={teams} categoryCode={category.code} />
+      </Section>
     </>
   );
 }
