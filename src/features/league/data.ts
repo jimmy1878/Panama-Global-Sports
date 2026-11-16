@@ -31,6 +31,8 @@ export type Tournament = {
   typeName: string; // "Clausura"
   startsOn: string;
   endsOn: string;
+  /** Hasta cuándo se puede inscribir un equipo, si el torneo lo define. */
+  registrationClosesOn: string | null;
 };
 
 export type Category = {
@@ -104,7 +106,7 @@ export const isUuid = (value: string) => UUID_RE.test(value);
 // ---------------------------------------------------------------------------
 // Torneos y categorías
 // ---------------------------------------------------------------------------
-const TOURNAMENT_SELECT = `id, league_id, slug, name, year, status, starts_on, ends_on,
+const TOURNAMENT_SELECT = `id, league_id, slug, name, year, status, starts_on, ends_on, registration_closes_on,
   league:leagues!inner(name),
   circuit:circuits!inner(name),
   type:tournament_types!inner(name)`;
@@ -118,6 +120,7 @@ type TournamentRow = {
   status: TournamentStatus;
   starts_on: string;
   ends_on: string;
+  registration_closes_on: string | null;
   league: { name: string };
   circuit: { name: string };
   type: { name: string };
@@ -136,6 +139,7 @@ function toTournament(t: TournamentRow): Tournament {
     typeName: t.type.name,
     startsOn: t.starts_on,
     endsOn: t.ends_on,
+    registrationClosesOn: t.registration_closes_on,
   };
 }
 
@@ -670,4 +674,143 @@ export async function getTeamPlayerStats(tournamentId: string, teamId: string): 
         : [],
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Portada
+// ---------------------------------------------------------------------------
+
+/** Jornadas jugadas y totales de cada torneo: "Jornada 4 de 5". */
+export async function getTournamentProgress(
+  tournamentIds: string[],
+): Promise<Record<string, { played: number; total: number }>> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("matches");
+
+  if (!tournamentIds.length) return {};
+  const supabase = createPublicClient();
+  const [{ data: matchdays }, { data: matches }] = await Promise.all([
+    supabase.from("matchdays").select("id, tournament_id, number").in("tournament_id", tournamentIds),
+    supabase
+      .from("matches")
+      .select("tournament_id, matchday_id, status")
+      .in("tournament_id", tournamentIds)
+      .not("matchday_id", "is", null),
+  ]);
+
+  const progress: Record<string, { played: number; total: number }> = {};
+  for (const day of matchdays ?? []) {
+    const entry = (progress[day.tournament_id] ??= { played: 0, total: 0 });
+    entry.total += 1;
+  }
+  // Una jornada cuenta como jugada cuando todos sus partidos terminaron
+  const porJornada = new Map<string, { tournament: string; todos: boolean }>();
+  for (const m of matches ?? []) {
+    if (!m.matchday_id) continue;
+    const prev = porJornada.get(m.matchday_id);
+    const terminado = m.status === "finished";
+    porJornada.set(m.matchday_id, {
+      tournament: m.tournament_id,
+      todos: prev ? prev.todos && terminado : terminado,
+    });
+  }
+  for (const { tournament, todos } of porJornada.values()) {
+    if (todos && progress[tournament]) progress[tournament].played += 1;
+  }
+  return progress;
+}
+
+/** Categorías que juega cada torneo, por id de torneo. */
+export async function getCategoriesByTournament(
+  tournamentIds: string[],
+): Promise<Record<string, Category[]>> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("tournaments");
+
+  if (!tournamentIds.length) return {};
+  const { data, error } = await createPublicClient()
+    .from("tournament_categories")
+    .select("tournament_id, category_id")
+    .in("tournament_id", tournamentIds);
+  if (error) fail("las categorías de los torneos", error);
+
+  // `getCategories()` ya viene ordenada (liga y luego edad): se respeta ese
+  // orden para que las fichas salgan U6, U8, U10… y no como las devuelva la BD.
+  const categories = await getCategories();
+  const result: Record<string, Category[]> = {};
+  const assigned = new Set((data ?? []).map((row) => `${row.tournament_id}:${row.category_id}`));
+  for (const tournamentId of new Set((data ?? []).map((row) => row.tournament_id))) {
+    result[tournamentId] = categories.filter((c) => assigned.has(`${tournamentId}:${c.id}`));
+  }
+  return result;
+}
+
+export type WeekMvp = {
+  matchId: string;
+  playerName: string;
+  team: Team;
+  categoryCode: string;
+  stats: { goals: number; assists: number; fairPlay: number };
+};
+
+/** El jugador del partido más reciente, para destacarlo en la portada. */
+export async function getWeekMvp(tournamentIds: string[]): Promise<WeekMvp | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("matches");
+
+  if (!tournamentIds.length) return null;
+  const supabase = createPublicClient();
+
+  // Se parte del último partido jugado: `match_mvps` no guarda fecha propia.
+  const { data: ultimos } = await supabase
+    .from("matches")
+    .select("id, category_id, tournament_id")
+    .in("tournament_id", tournamentIds)
+    .eq("status", "finished")
+    .order("starts_at", { ascending: false })
+    .limit(10);
+  if (!ultimos?.length) return null;
+
+  const { data: mvps } = await supabase
+    .from("match_mvps")
+    .select("player_id, team_id, match_id")
+    .in("match_id", ultimos.map((m) => m.id));
+  if (!mvps?.length) return null;
+
+  // El primero que aparezca siguiendo el orden de los partidos (el más reciente)
+  const partido = ultimos.find((m) => mvps.some((v) => v.match_id === m.id));
+  const elegido = partido && mvps.find((v) => v.match_id === partido.id);
+  if (!partido || !elegido) return null;
+
+  const mvp = {
+    player_id: elegido.player_id,
+    team_id: elegido.team_id,
+    match: { id: partido.id, category_id: partido.category_id, tournament_id: partido.tournament_id },
+  };
+
+  const [names, teams, categories, { data: events }] = await Promise.all([
+    getPlayerNames([mvp.player_id]),
+    getTeams(mvp.match.tournament_id),
+    getCategories(),
+    supabase
+      .from("scoring_events")
+      .select("code")
+      .eq("player_id", mvp.player_id)
+      .eq("match_id", mvp.match.id),
+  ]);
+
+  const team = teams.find((t) => t.id === mvp.team_id);
+  if (!team) return null;
+  const count = (code: string) => (events ?? []).filter((e) => e.code === code).length;
+
+  return {
+    matchId: mvp.match.id,
+    playerName: names.get(mvp.player_id) ?? "Jugador",
+    team,
+    categoryCode: categories.find((c) => c.id === mvp.match.category_id)?.code ?? "",
+    stats: { goals: count("goal"), assists: count("assist"), fairPlay: count("fair_play") },
+  };
 }

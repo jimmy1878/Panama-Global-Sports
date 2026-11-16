@@ -1,14 +1,21 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { CalendarDays, ChartColumn, Radio } from "lucide-react";
+import { CalendarDays, ChartColumn } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { LiveRefresher } from "@/components/live/live-refresher";
 import { LiveHero } from "@/features/league/components/live-hero";
+import { TournamentCards } from "@/features/league/components/tournament-cards";
+import { UpcomingBanner } from "@/features/league/components/upcoming-banner";
+import { WeekMvpCard } from "@/features/league/components/week-mvp";
 import { MatchCard } from "@/features/league/components/match-list";
 import {
   getCategories,
+  getCategoriesByTournament,
   getCurrentTournaments,
   getHomeMatches,
+  getTournamentProgress,
+  getTournaments,
+  getWeekMvp,
   type Category,
   type Match,
   type Tournament,
@@ -21,11 +28,14 @@ export default function Home() {
       <Suspense fallback={<Skeleton className="h-56 md:h-72" />}>
         <TopOfPage />
       </Suspense>
+      <Suspense fallback={<Skeleton className="h-64" />}>
+        <CurrentTournaments />
+      </Suspense>
       <Suspense fallback={<HomeSkeleton />}>
         <HomeMatches />
       </Suspense>
-      <Suspense fallback={<Skeleton className="h-40" />}>
-        <CategoryLinks />
+      <Suspense fallback={<Skeleton className="h-44" />}>
+        <UpcomingTournament />
       </Suspense>
     </div>
   );
@@ -89,37 +99,60 @@ function TournamentsHero({ tournaments }: { tournaments: Tournament[] }) {
 async function HomeMatches() {
   const tournaments = await getCurrentTournaments();
   if (!tournaments.length) return <EmptyState>No hay ningún torneo en curso.</EmptyState>;
-  const [{ live, upcoming, recent }, categories] = await Promise.all([
-    getHomeMatches(tournaments.map((t) => t.id)),
+  const ids = tournaments.map((t) => t.id);
+  const [{ upcoming, recent }, categories, mvp] = await Promise.all([
+    getHomeMatches(ids),
     getCategories(),
+    getWeekMvp(ids),
   ]);
   const catById = new Map(categories.map((c) => [c.id, c]));
 
   return (
     <>
-      {/* Tiempo real en Inicio: espera unos segundos para agrupar cambios de muchos partidos */}
+      {/* Tiempo real en Inicio: espera unos segundos para agrupar cambios de muchos partidos.
+          Los partidos en vivo ya los encabeza <LiveHero>, no se repiten aquí. */}
       <LiveRefresher delayMs={5000} />
-      {live.length ? (
-        <Section title="En vivo ahora">
-          <p className="-mt-2 mb-3 flex items-center gap-1.5 text-xs text-muted">
-            <Radio className="size-3.5 text-brand-red" aria-hidden />
-            El marcador se actualiza solo.
-          </p>
-          <CardGrid matches={live} catById={catById} />
-        </Section>
-      ) : null}
 
-      {/* Móvil: una columna. Desktop: próximos y resultados lado a lado. */}
-      <div className="grid gap-8 md:grid-cols-2 md:gap-8">
-        <Section title="Próximos partidos" href="/calendario">
-          {upcoming.length ? <CardGrid matches={upcoming} catById={catById} /> : <EmptyState>No hay partidos programados.</EmptyState>}
-        </Section>
+      {/* Móvil: una columna. Desktop: resultados y el destacado lado a lado. */}
+      <div className="grid gap-8 md:grid-cols-2">
         <Section title="Últimos resultados" href="/calendario">
           {recent.length ? <CardGrid matches={recent} catById={catById} /> : <EmptyState>Aún no hay resultados.</EmptyState>}
         </Section>
+        {mvp ? <WeekMvpCard mvp={mvp} /> : null}
       </div>
+
+      <Section title="Próximos partidos" href="/calendario">
+        {upcoming.length ? <CardGrid matches={upcoming} catById={catById} /> : <EmptyState>No hay partidos programados.</EmptyState>}
+      </Section>
     </>
   );
+}
+
+/** Una tarjeta por liga con su torneo actual, sus jornadas y sus categorías. */
+async function CurrentTournaments() {
+  const tournaments = await getCurrentTournaments();
+  if (!tournaments.length) return null;
+  const ids = tournaments.map((t) => t.id);
+  const [categoriesByTournament, progress] = await Promise.all([
+    getCategoriesByTournament(ids),
+    getTournamentProgress(ids),
+  ]);
+  return (
+    <Section title="Torneos en curso" href="/equipos" linkLabel="Ver equipos">
+      <TournamentCards
+        tournaments={tournaments}
+        categoriesByTournament={categoriesByTournament}
+        progress={progress}
+      />
+    </Section>
+  );
+}
+
+/** El torneo que viene, mientras tenga inscripciones abiertas. */
+async function UpcomingTournament() {
+  const abiertos = (await getTournaments()).filter((t) => t.status === "inscripciones");
+  if (!abiertos.length) return null;
+  return <UpcomingBanner tournaments={abiertos} />;
 }
 
 function CardGrid({ matches, catById }: { matches: Match[]; catById: Map<string, Category> }) {
@@ -134,35 +167,6 @@ function CardGrid({ matches, catById }: { matches: Match[]; catById: Map<string,
   );
 }
 
-async function CategoryLinks() {
-  const categories = await getCategories();
-  const leagues = [...new Map(categories.map((c) => [c.leagueId, c.leagueName])).entries()];
-  return (
-    <Section title="Categorías">
-      <div className="grid gap-4 md:grid-cols-2">
-        {leagues.map(([leagueId, leagueName]) => (
-          <div key={leagueId} className="rounded-2xl border border-border bg-surface p-4">
-            <h3 className="mb-3 font-semibold">{leagueName}</h3>
-            <ul className="grid grid-cols-5 gap-2">
-              {categories
-                .filter((c) => c.leagueId === leagueId)
-                .map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      href={`/estadisticas?cat=${c.key}`}
-                      className="flex h-11 items-center justify-center rounded-xl bg-surface-muted text-sm font-bold hover:bg-brand-blue hover:text-white"
-                    >
-                      {c.code}
-                    </Link>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
 
 function HomeSkeleton() {
   return (
