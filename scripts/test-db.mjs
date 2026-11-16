@@ -493,5 +493,92 @@ await db.exec(`select admin_set_tournament_status('${T1}', 'en_curso')`);
 check((await q(`select finished_at from tournaments where id='${T1}'`))[0].finished_at === null,
   "reabrir el torneo borra la fecha de finalización");
 
+// ---------------------------------------------------------------------------
+// Patrocinios (fase 2 del documento: la fuente principal de ingresos)
+// ---------------------------------------------------------------------------
+console.log("Patrocinios:");
+// El día en Panamá (UTC−5), que es el que usa la vista: de noche no coincide con `current_date`, que es UTC.
+const HOY = "(now() at time zone 'America/Panama')::date";
+const niveles = (await q(`select count(*)::int n from sponsorship_tiers`))[0].n;
+const espacios = (await q(`select count(*)::int n from sponsorship_slots`))[0].n;
+check(niveles === 4 && espacios === 7, `catálogo sembrado (${niveles} niveles, ${espacios} espacios)`);
+
+const ORG = (await q(`select id from organizations limit 1`))[0].id;
+const BOYS = (await q(`select id from leagues where slug='boys'`))[0].id;
+const GIRLS = (await q(`select id from leagues where slug='girls'`))[0].id;
+const SLOT_LIGA = (await q(`select id from sponsorship_slots where code='liga_header'`))[0].id;
+const TIER_LIGA = (await q(`select id from sponsorship_tiers where slug='patrocinador-liga'`))[0].id;
+
+const SP_A = "aaaaaaaa-0000-4000-8000-000000000001";
+const SP_B = "aaaaaaaa-0000-4000-8000-000000000002";
+const CT_A = "cccccccc-0000-4000-8000-000000000001";
+const CT_B = "cccccccc-0000-4000-8000-000000000002";
+await db.exec(`
+  insert into sponsors (id, name, logo_path) values
+    ('${SP_A}', 'Marca A', 'a/logo.webp'), ('${SP_B}', 'Marca B', 'b/logo.webp');
+  insert into sponsorship_contracts (id, sponsor_id, tier_id, starts_on, ends_on, status) values
+    ('${CT_A}', '${SP_A}', '${TIER_LIGA}', ${HOY} - 30, ${HOY} + 30, 'activo'),
+    ('${CT_B}', '${SP_B}', '${TIER_LIGA}', ${HOY} - 30, ${HOY} + 30, 'activo');`);
+
+await expectFail("un ámbito que no existe se rechaza",
+  `insert into sponsorship_placements (contract_id, slot_id, scope, scope_id, starts_on, ends_on)
+   values ('${CT_A}', '${SLOT_LIGA}', 'liga', '00000000-0000-4000-8000-000000000000', ${HOY}, ${HOY} + 1)`,
+  /no apunta a ninguna fila/);
+
+await expectOk("admin asigna el encabezado de Boys a la Marca A",
+  `insert into sponsorship_placements (id, contract_id, slot_id, scope, scope_id, starts_on, ends_on, link_url)
+   values ('dddddddd-0000-4000-8000-000000000001', '${CT_A}', '${SLOT_LIGA}', 'liga', '${BOYS}',
+           ${HOY} - 5, ${HOY} + 5, 'https://marca-a.example')`);
+
+check((await q(`select exclusive from sponsorship_placements where contract_id='${CT_A}'`))[0].exclusive === true,
+  "la exclusividad del nivel baja sola a la asignación");
+
+await expectFail("dos exclusivas no se cruzan en el mismo espacio y ámbito",
+  `insert into sponsorship_placements (contract_id, slot_id, scope, scope_id, starts_on, ends_on)
+   values ('${CT_B}', '${SLOT_LIGA}', 'liga', '${BOYS}', ${HOY}, ${HOY} + 20)`,
+  /ya tiene un patrocinador exclusivo/);
+
+await expectOk("el mismo espacio en otra liga sí se puede vender",
+  `insert into sponsorship_placements (contract_id, slot_id, scope, scope_id, starts_on, ends_on)
+   values ('${CT_B}', '${SLOT_LIGA}', 'liga', '${GIRLS}', ${HOY}, ${HOY} + 20)`);
+
+await expectOk("y en la misma liga después de que termine el otro",
+  `insert into sponsorship_placements (contract_id, slot_id, scope, scope_id, starts_on, ends_on)
+   values ('${CT_B}', '${SLOT_LIGA}', 'liga', '${BOYS}', ${HOY} + 6, ${HOY} + 20)`);
+
+const vigentes = await q(anon(`select slot_code, scope, sponsor_name from active_sponsor_placements order by sponsor_name`));
+check(vigentes.length === 2 && vigentes[0].sponsor_name === "Marca A",
+  `el público ve solo lo vigente hoy (${vigentes.length} de 3 asignaciones)`);
+
+await db.exec(`insert into sponsorship_placements (contract_id, slot_id, scope, scope_id, starts_on, ends_on)
+  values ('${CT_A}', '${SLOT_LIGA}', 'organizacion', '${ORG}', ${HOY} - 40, ${HOY} - 35)`);
+check((await q(anon(`select count(*)::int n from active_sponsor_placements`)))[0].n === 2,
+  "una asignación vencida no se muestra");
+
+await db.exec(`update sponsorship_contracts set status='borrador' where id='${CT_B}'`);
+check((await q(anon(`select count(*)::int n from active_sponsor_placements`)))[0].n === 1,
+  "un contrato en borrador no pinta nada");
+await db.exec(`update sponsorship_contracts set status='activo' where id='${CT_B}'`);
+
+const ningunDato = await q(anon(`select count(*)::int n from sponsors`));
+check(ningunDato[0].n === 0, "el público no lee la tabla de patrocinadores");
+check((await q(user(PARENT, `select count(*)::int n from sponsorship_contracts`)))[0].n === 0,
+  "un padre no ve los montos de los contratos");
+
+const PL = "dddddddd-0000-4000-8000-000000000001";
+await db.exec(anon(`select record_sponsor_event('${PL}', 'impression');
+                    select record_sponsor_event('${PL}', 'impression');
+                    select record_sponsor_event('${PL}', 'click')`));
+const met = (await q(`select impressions, clicks from sponsorship_metrics where placement_id='${PL}'`))[0];
+check(met.impressions === 2 && met.clicks === 1, "se cuentan impresiones y clics del día");
+
+await expectFail("un tipo de evento inventado se rechaza",
+  anon(`select record_sponsor_event('${PL}', 'robo')`), /inválido/);
+
+const reporte = (await q(user(ADMIN, `select sponsor_name, impressions, clicks from sponsorship_contract_report
+  where contract_id='${CT_A}'`)))[0];
+check(reporte.sponsor_name === "Marca A" && Number(reporte.impressions) === 2 && Number(reporte.clicks) === 1,
+  "el reporte por contrato suma lo de sus espacios");
+
 console.log(failures ? `\n${failures} PRUEBA(S) FALLARON, ${passed} pasaron` : `\nTODAS LAS PRUEBAS PASARON (${passed})`);
 process.exit(failures ? 1 : 0);

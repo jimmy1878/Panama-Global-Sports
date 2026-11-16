@@ -53,12 +53,13 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 7b. ✅ **Reestructuración al modelo de torneos** (migración 8, `tournament_model`) — 2026-11-15. Sustituye la temporada única por organización → liga → circuito → torneo → categoría. Aplicada en Supabase y desplegada.
 8. ✅ Crónica con la API de Claude (`/admin/cronicas`) — 2026-11-15. Construida y desplegada, pero APAGADA hasta que haya `ANTHROPIC_API_KEY` con saldo.
 9. ◐ Galería de FOTOS (`/galeria`, subida en la página del partido, revisión en `/admin/galeria`) — 2026-11-15. Agrupada por **jornada**. **El video queda fuera**: sigue sin decidirse cómo procesarlo.
-10. Certificados PDF al finalizar cada torneo.
-Futuro: **patrocinios** (el dueño los quiere pronto: es la fuente principal de ingresos), álbum de figuritas y fantasy.
+10. ◐ **Patrocinios** (migración 9, `sponsorships`) — 2026-11-15. La base de datos está escrita y probada; **falta aplicarla en Supabase**, regenerar los tipos y construir el panel y los espacios públicos.
+11. Certificados PDF al finalizar cada torneo.
+Futuro: álbum de figuritas y fantasy.
 
 Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
 Decisión 2026-11-15: la temporada es el año vigente (dueño), y el modelo pasa a torneos.
-Decisiones pendientes: cómo procesar videos (fase 9); si la ficha de un jugador se puede compartir como imagen; alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); si los primeros puestos clasifican a una final (el mockup lo dice, el dueño no lo ha confirmado, y por eso la tabla no resalta ningún puesto); el historial (`/historial`); el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
+Decisiones pendientes: precios de cada nivel de patrocinio y si hace falta el rol Comercial; cómo procesar videos (fase 9); si la ficha de un jugador se puede compartir como imagen; alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); si los primeros puestos clasifican a una final (el mockup lo dice, el dueño no lo ha confirmado, y por eso la tabla no resalta ningún puesto); el historial (`/historial`); el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
 Ideas pospuestas: reloj del partido guardado en la BD con botones "Medio tiempo / Reanudar" (hoy el minuto corre en tiempo real desde el inicio y el ajuste −/+ del delegado es local y el público no lo ve).
 
 ### Base de datos (`supabase/migrations/`)
@@ -184,6 +185,21 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 - **Video: fuera de alcance por ahora.** `sharp` solo procesa imágenes; el video necesita ffmpeg o un servicio externo y las funciones de Vercel tienen límites. La subida rechaza videos con un mensaje claro y `processMedia` marca como rechazado cualquier `kind <> 'photo'`. Decidir antes de retomarlo.
 - Pruebas: `npm run test:media` comprueba con el mismo pipeline que una foto con GPS sale sin un solo metadato. Es la garantía de privacidad de esta fase: si se toca `processMedia`, correrla.
 
+## Patrocinios (fase 2 de la especificación del dueño)
+
+Es la **fuente principal de ingresos**. Un patrocinador se asigna a un espacio dentro de un ámbito y unas fechas; el código solo pregunta "¿quién va en este espacio, en esta página, hoy?". Vender un espacio nuevo no debe ser un despliegue.
+
+- Migración 9 (`20261115000900_sponsorships.sql`): `sponsors` · `sponsorship_tiers` (niveles) · `sponsorship_slots` (catálogo de espacios) · `sponsorship_contracts` · `sponsorship_placements` (asignaciones) · `sponsorship_metrics` (impresiones y clics por día).
+- **Espacios** (los códigos son los del documento, en español): `liga_header`, `torneo_header`, `partido_pagina`, `album_portada`, `album_figurita`, `album_sobre`, `fantasy_premio`. Los tres últimos son de fases futuras: están en el catálogo pero todavía no se pintan.
+- **Ámbitos**, del más específico al más general: `categoria`, `torneo`, `circuito`, `liga`, `organizacion`. `scope_id` es una referencia polimórfica (no hay FK posible); un trigger comprueba que la fila exista.
+- La regla de quién gana vive en `src/features/sponsors/pick.ts`, un **archivo neutro y sin acceso a datos**: gana el ámbito más específico que tenga asignación (no se acumulan), después la `priority` y, si hay empate, se rota por `rotation_weight`. Pruebas: `npm run test:sponsors`.
+- **La portada no lleva patrocinios** (lo dice el documento). Eso lo cumple el código, no la base.
+- La exclusividad la impone un trigger: dos asignaciones exclusivas no pueden cruzar fechas en el mismo espacio y ámbito. El nivel dice si es exclusivo y el valor baja solo a la asignación.
+- El público **no lee ninguna tabla de patrocinios**: lee la vista `active_sponsor_placements`, que solo devuelve lo vigente hoy de contratos activos y nunca montos ni contactos. "Hoy" es el día en **Panamá** (UTC−5), no el del servidor: de noche no son el mismo día.
+- Las métricas se escriben solo por `record_sponsor_event(placement, 'impression' | 'click')`, nunca con una política abierta. El reporte por contrato sale de `sponsorship_contract_report` (solo admin).
+- Logos en el bucket `sponsor-logos` (público, como los de los equipos).
+- Pendiente de la especificación: el rol **Comercial** (patrocinios y reportes, sin ver datos de jugadores). Hoy solo el admin administra patrocinios; añadirlo es un valor más en `app_role` y tocar las políticas.
+
 ## Crónica automática (fase 8)
 
 - Al finalizar un partido, `after(() => generateChronicle(id))` (delegado y admin) pide el texto a la API de Claude y lo guarda como **borrador** en `match_chronicles`. Nunca publica: eso lo hace un admin en `/admin/cronicas`.
@@ -205,6 +221,7 @@ npm run lint
 npm run test:db # pruebas de la base de datos (PGlite simula Supabase)
 npm run test:rules # reglas de las crónicas (privacidad y longitud)
 npm run test:media # el procesado de fotos borra EXIF/GPS
+npm run test:sponsors # qué patrocinador gana cada espacio
 npm run icons   # regenera los iconos de la PWA
 npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase login` una vez en tu terminal)
 ```

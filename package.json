@@ -12,7 +12,8 @@
     "test:media": "node scripts/test-media.mjs",
     "db:push": "node scripts/db-push.mjs",
     "db:types": "node scripts/db-types.mjs",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "test:sponsors": "node scripts/test-sponsors.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
