@@ -54,7 +54,7 @@ Construir **una fase a la vez** y esperar aprobación antes de empezar la siguie
 8. ✅ Crónica con la API de Claude (`/admin/cronicas`) — 2026-11-15. Construida y desplegada, pero APAGADA hasta que haya `ANTHROPIC_API_KEY` con saldo.
 9. ◐ Galería de FOTOS (`/galeria`, subida en la página del partido, revisión en `/admin/galeria`) — 2026-11-15. Agrupada por **jornada**. **El video queda fuera**: sigue sin decidirse cómo procesarlo.
 10. ✅ **Patrocinios** (migración 9, `sponsorships`) — 2026-11-15. Aplicada en Supabase. Panel en `/admin/patrocinios` y espacios en la página de categoría y en la de partido. Falta vender: no hay ningún patrocinador cargado.
-11. Certificados PDF al finalizar cada torneo.
+11. ✅ **Certificados PDF** al finalizar cada torneo (`/familia`, ruta `/familia/certificado`) — 2026-11-16. Migración 10: el certificado es un espacio de patrocinio más (`certificado`).
 Futuro: álbum de figuritas y fantasy.
 
 Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
@@ -190,7 +190,7 @@ match_attendance (partidos jugados) · media_items → media_tags · match_chron
 Es la **fuente principal de ingresos**. Un patrocinador se asigna a un espacio dentro de un ámbito y unas fechas; el código solo pregunta "¿quién va en este espacio, en esta página, hoy?". Vender un espacio nuevo no debe ser un despliegue.
 
 - Migración 9 (`20261115000900_sponsorships.sql`): `sponsors` · `sponsorship_tiers` (niveles) · `sponsorship_slots` (catálogo de espacios) · `sponsorship_contracts` · `sponsorship_placements` (asignaciones) · `sponsorship_metrics` (impresiones y clics por día).
-- **Espacios** (los códigos son los del documento, en español): `liga_header`, `torneo_header`, `partido_pagina`, `album_portada`, `album_figurita`, `album_sobre`, `fantasy_premio`. Los tres últimos son de fases futuras: están en el catálogo pero todavía no se pintan.
+- **Espacios** (los códigos son los del documento, en español): `liga_header`, `torneo_header`, `partido_pagina`, `certificado`, `album_portada`, `album_figurita`, `album_sobre`, `fantasy_premio`. Los tres últimos son de fases futuras: están en el catálogo pero todavía no se pintan. `certificado` lo añadió la migración 10 y no sale del documento: es la única pieza que acaba impresa en una casa.
 - **Ámbitos**, del más específico al más general: `categoria`, `torneo`, `circuito`, `liga`, `organizacion`. `scope_id` es una referencia polimórfica (no hay FK posible); un trigger comprueba que la fila exista.
 - La regla de quién gana vive en `src/features/sponsors/pick.ts`, un **archivo neutro y sin acceso a datos**: gana el ámbito más específico que tenga asignación (no se acumulan), después la `priority` y, si hay empate, se rota por `rotation_weight`. Pruebas: `npm run test:sponsors`.
 - **La portada no lleva patrocinios** (lo dice el documento). Eso lo cumple el código, no la base.
@@ -198,11 +198,22 @@ Es la **fuente principal de ingresos**. Un patrocinador se asigna a un espacio d
 - El público **no lee ninguna tabla de patrocinios**: lee la vista `active_sponsor_placements`, que solo devuelve lo vigente hoy de contratos activos y nunca montos ni contactos. "Hoy" es el día en **Panamá** (UTC−5), no el del servidor: de noche no son el mismo día.
 - Las métricas se escriben solo por `record_sponsor_event(placement, 'impression' | 'click')`, nunca con una política abierta. El reporte por contrato sale de `sponsorship_contract_report` (solo admin).
 - Logos en el bucket `sponsor-logos` (público, como los de los equipos).
-- **Dónde se pintan hoy**: `liga_header` y `torneo_header` en la cabecera de la pantalla de categoría, y `partido_pagina` bajo el marcador. El `<SponsorSlot>` llama a `connection()` a propósito: si se prerenderizara, la rotación quedaría congelada en el build y un patrocinador se llevaría todas las impresiones.
+- **Dónde se pintan hoy**: `liga_header` y `torneo_header` en la cabecera de la pantalla de categoría, `partido_pagina` bajo el marcador y `certificado` en el pie del PDF. Este último no lo avisa el navegador: la impresión la cuenta el servidor al generar el certificado. El `<SponsorSlot>` llama a `connection()` a propósito: si se prerenderizara, la rotación quedaría congelada en el build y un patrocinador se llevaría todas las impresiones.
 - La **impresión** la avisa el navegador con `sendBeacon` a `/api/patrocinio/:id/vista`; el **clic** pasa por `/api/patrocinio/:id/ir`, que cuenta y luego redirige, y lee el destino de la base (nunca de la URL) y solo si es http(s).
 - Panel en `/admin/patrocinios`: contratos con sus impresiones y clics, asignación de espacios, marcas y cambio de estado. El ámbito se elige en un solo desplegable (`liga:<uuid>`), agrupado por tipo.
 - Tras escribir, `refreshPublic("sponsors")`; las lecturas públicas van con `cacheTag("sponsors")`.
 - Pendiente de la especificación: el rol **Comercial** (patrocinios y reportes, sin ver datos de jugadores). Hoy solo el admin administra patrocinios; añadirlo es un valor más en `app_role` y tocar las políticas.
+
+## Certificados (fase 11)
+
+- Ruta `/familia/certificado?jugador=<uuid>&torneo=<uuid>`, enlazada desde la sección **Certificados** de `/familia`. Devuelve un PDF con `Cache-Control: private, no-store`.
+- El permiso lo impone la base: la vista `my_family_tournament_certificates` solo devuelve torneos **finalizados** y solo los hijos de quien pregunta. La ruta no comprueba nada más; si la vista no trae fila, es un 404 (no es su hijo, o el torneo sigue en curso: la misma respuesta a propósito).
+- `display_name` es una columna **generada** (`first_name || ' ' || last_initial || '.'`): el certificado no puede mostrar el apellido completo ni queriendo.
+- En categorías con `recognition_mode = 'team_stars'` la vista devuelve `null` en todas las cifras, la lista de estadísticas queda vacía y la plantilla cambia sola a participación y valores. No es la interfaz la que oculta los números: nunca llegan.
+- Se dibuja con Satori (`next/og`, mismas fuentes Geist que la tarjeta de resultado) a 2200×1700 px y `pdf-lib` mete esa imagen en una página **carta horizontal** (792×612 pt = 200 ppp). Es imagen y no texto seleccionable a propósito: lo que importa es que se imprima igual en cualquier parte.
+- El navy va solo en las bandas de arriba y abajo; el cuerpo queda claro. Un fondo navy completo se come el tóner de una impresora de casa, y de paso evita el problema de que el logotipo trae su propio fondo navy difuminado.
+- El pie lleva el espacio de patrocinio `certificado`. Como no hay navegador que avise, la **impresión** la registra el servidor con `after(() => recordSponsorEvent(...))` al generar el PDF.
+- `outputFileTracingIncludes` incluye `assets/fonts/*.ttf` también para `/familia/certificado`: las fuentes se leen del disco en tiempo de ejecución.
 
 ## Crónica automática (fase 8)
 

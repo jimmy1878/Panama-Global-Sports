@@ -501,7 +501,7 @@ console.log("Patrocinios:");
 const HOY = "(now() at time zone 'America/Panama')::date";
 const niveles = (await q(`select count(*)::int n from sponsorship_tiers`))[0].n;
 const espacios = (await q(`select count(*)::int n from sponsorship_slots`))[0].n;
-check(niveles === 4 && espacios === 7, `catálogo sembrado (${niveles} niveles, ${espacios} espacios)`);
+check(niveles === 4 && espacios === 8, `catálogo sembrado (${niveles} niveles, ${espacios} espacios)`);
 
 const ORG = (await q(`select id from organizations limit 1`))[0].id;
 const BOYS = (await q(`select id from leagues where slug='boys'`))[0].id;
@@ -579,6 +579,9 @@ const reporte = (await q(user(ADMIN, `select sponsor_name, impressions, clicks f
   where contract_id='${CT_A}'`)))[0];
 check(reporte.sponsor_name === "Marca A" && Number(reporte.impressions) === 2 && Number(reporte.clicks) === 1,
   "el reporte por contrato suma lo de sus espacios");
+
+const certSlot = await q(`select name, active from sponsorship_slots where code='certificado'`);
+check(certSlot.length === 1 && certSlot[0].active, "migración 10: el certificado es un espacio vendible más");
 
 console.log(failures ? `\n${failures} PRUEBA(S) FALLARON, ${passed} pasaron` : `\nTODAS LAS PRUEBAS PASARON (${passed})`);
 process.exit(failures ? 1 : 0);

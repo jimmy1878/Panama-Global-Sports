@@ -23,6 +23,7 @@ export const SPONSOR_SLOTS = [
   "liga_header",
   "torneo_header",
   "partido_pagina",
+  "certificado",
   "album_portada",
   "album_figurita",
   "album_sobre",

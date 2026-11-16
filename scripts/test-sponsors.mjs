@@ -1,7 +1,7 @@
 // Prueba la regla que decide qué patrocinador va en cada espacio.
 // Es dinero: si falla, se le cobra a una marca un espacio que no salió.
 // Uso: npm run test:sponsors
-import { pickSponsor } from "../src/features/sponsors/pick.ts";
+import { pickSponsor, SPONSOR_SLOTS } from "../src/features/sponsors/pick.ts";
 
 let failures = 0;
 let passed = 0;
@@ -59,6 +59,19 @@ check(pickSponsor([place("Otra liga", "liga", "liga-girls")], "liga_header", CON
   "la liga de al lado no cuenta");
 check(pickSponsor(todos, "liga_header", { liga: "liga-boys" })?.sponsorName === "Liga",
   "una página que solo conoce su liga usa la de la liga");
+
+console.log("Certificado:");
+check(SPONSOR_SLOTS.includes("certificado"), "el catálogo del código conoce el espacio del certificado");
+const cert = [
+  place("Marca del torneo", "torneo", "tor-navidad", { slotCode: "certificado" }),
+  place("Marca de la liga", "liga", "liga-boys", { slotCode: "certificado" }),
+];
+check(pickSponsor(cert, "certificado", CONTEXT)?.sponsorName === "Marca del torneo",
+  "el certificado sigue la misma regla de ámbito que el resto");
+check(pickSponsor(cert, "liga_header", CONTEXT) === null,
+  "quien compró el certificado no aparece en el encabezado");
+check(pickSponsor(todos, "certificado", CONTEXT) === null,
+  "y el certificado no hereda al patrocinador del encabezado");
 
 console.log("Prioridad y rotación:");
 const empate = [

@@ -2,9 +2,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CalendarDays, Hand, HandHeart, MapPin, Medal, Star, Trophy } from "lucide-react";
+import { Award, CalendarDays, Download, Hand, HandHeart, MapPin, Medal, Star, Trophy } from "lucide-react";
 import { EmptyState, PageTitle, Section, Skeleton } from "@/components/ui/section";
 import { TeamCrest } from "@/components/ui/team-crest";
+import { getMyCertificates, type CertificateRow } from "@/features/certificates/data";
 import { ConsentToggle, FollowButton } from "@/features/family/components";
 import { getMyFamily, type Child } from "@/features/family/data";
 import { StatusBadge } from "@/features/league/components/match-list";
@@ -37,7 +38,7 @@ async function FamilyContent() {
     );
   }
 
-  const teams = await getCurrentTeams();
+  const [teams, certificates] = await Promise.all([getCurrentTeams(), getMyCertificates()]);
   const followed = new Set(family.followedTeamIds);
   const childTeamIds = [...new Set(family.children.flatMap((c) => (c.team ? [c.team.id] : [])))];
 
@@ -70,6 +71,8 @@ async function FamilyContent() {
         ))}
       </ul>
 
+      <Certificates rows={certificates} />
+
       <Section title="Equipos que sigues" href="/avisos" linkLabel="Configurar avisos">
         {followedTeams.length ? (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -91,6 +94,51 @@ async function FamilyContent() {
         )}
       </Section>
     </div>
+  );
+}
+
+/**
+ * Certificados: uno por hijo y por torneo terminado. Van en su propia sección
+ * y no en la tarjeta del hijo porque se acumulan con cada torneo y la lista
+ * crece: un niño que juega en su academia y en su colegio suma dos al año.
+ */
+function Certificates({ rows }: { rows: CertificateRow[] }) {
+  return (
+    <Section title="Certificados">
+      {rows.length ? (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {rows.map((row) => (
+            <li
+              key={`${row.playerId}-${row.tournamentId}`}
+              className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4"
+            >
+              <Award className="size-9 shrink-0 text-gold" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{row.name}</p>
+                <p className="truncate text-sm text-muted">{row.tournamentName}</p>
+                <p className="truncate text-xs text-muted">
+                  {row.teamName}
+                  {row.categoryLabel ? ` · ${row.categoryLabel}` : ""}
+                </p>
+              </div>
+              {/* Enlace normal, no una acción: el navegador descarga el PDF. */}
+              <a
+                href={`/familia/certificado?jugador=${row.playerId}&torneo=${row.tournamentId}`}
+                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-brand-blue px-4 text-sm font-semibold text-white"
+              >
+                <Download className="size-4" aria-hidden />
+                PDF
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">
+          El certificado de cada hijo aparece aquí cuando su torneo termina, con sus estadísticas de ese torneo. Ahora
+          mismo no hay ninguno terminado.
+        </p>
+      )}
+    </Section>
   );
 }
 
