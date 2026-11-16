@@ -232,7 +232,11 @@ No es la versión desktop encogida. Cada vista se diseña **dos veces**:
 
 - Escribir estilos base para móvil y añadir `md:` / `lg:` para desktop. Nunca al revés.
 - Cuando la estructura cambia (tarjetas vs. tabla), renderizar **dos componentes** (`md:hidden` / `hidden md:block`) en lugar de forzar uno solo con muchos breakpoints.
-- La navegación está definida una sola vez en `src/components/layout/nav-items.ts`; móvil y desktop la consumen.
+- La navegación vive en `src/components/layout/nav-items.ts`, en **dos listas**: `DESKTOP_NAV` (la del diseño: Torneos, En vivo, Calendario, Galería, Álbum, Fantasy, Historial) y `NAV_ITEMS` (los cinco destinos del menú inferior en móvil). Las entradas con `soon: true` se pintan apagadas porque su pantalla no existe; al construirla, quitar la marca.
+- **Portada** (`src/app/page.tsx`): si hay un partido en curso manda `<LiveHero>` (marcador grande, escudos, minuto y "también en juego"); si no, la presentación de los torneos. Encima, la barra `<TodayBar>` con los partidos del día **más cualquiera en vivo**, aunque su fecha sea otra.
+- Solo puede haber **un `<LiveRefresher>` por página**: dos se suscriben al mismo canal de Realtime y el segundo lanza "cannot add postgres_changes callbacks after subscribe()".
+- El minuto en vivo (`<LiveMinute>`) se oculta pasados 150 minutos: un marcador que el delegado dejó abierto anunciaba "2974'".
+- `<BrandBackdrop>` dibuja el balón y las vetas de luz en SVG; acompaña a `bg-brand-gradient` en el header.
 - Respetar `env(safe-area-inset-bottom)` en el menú inferior (iPhone).
 - **Identidad (2026-11-15)**: navy y dorado, muestreados del logotipo. Tokens en `globals.css`, nunca hex sueltos en componentes:
   - `navy` `#010f2a` y `navy-soft` `#001743` — fondo de marca. La clase `bg-brand-gradient` reproduce el degradado que el logo trae debajo de sí: se usa en el header, el menú inferior, el hero y las piezas de marca.
