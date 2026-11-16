@@ -58,7 +58,7 @@ Futuro: **patrocinios** (el dueño los quiere pronto: es la fuente principal de 
 
 Decisiones tomadas: tabla de posiciones visible en todas las categorías. MVP en todas las categorías (con nombre). U6 y U8 en modo `individual_ranking` (goleadores con nombre y rankings), configurable en /admin/categorias.
 Decisión 2026-11-15: la temporada es el año vigente (dueño), y el modelo pasa a torneos.
-Decisiones pendientes: cómo procesar videos (fase 9); alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); si los primeros puestos clasifican a una final (el mockup lo dice, el dueño no lo ha confirmado, y por eso la tabla no resalta ningún puesto); el historial (`/historial`); el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
+Decisiones pendientes: cómo procesar videos (fase 9); si la ficha de un jugador se puede compartir como imagen; alcance del voto MVP (uno por partido vs. uno por equipo); calendario anual (en qué orden van Academias, Escolares, Apertura, Clausura y Navidad); si los primeros puestos clasifican a una final (el mockup lo dice, el dueño no lo ha confirmado, y por eso la tabla no resalta ningún puesto); el historial (`/historial`); el consentimiento sigue siendo un solo booleano y la especificación pide dos (foto de perfil y fotos de galería); **SMTP propio, que bloquea abrir la app a los padres**.
 Ideas pospuestas: reloj del partido guardado en la BD con botones "Medio tiempo / Reanudar" (hoy el minuto corre en tiempo real desde el inicio y el ajuste −/+ del delegado es local y el público no lo ve).
 
 ### Base de datos (`supabase/migrations/`)
@@ -248,6 +248,11 @@ No es la versión desktop encogida. Cada vista se diseña **dos veces**:
   - La forma ("Últimos 5") sale de `getRecentForm()`, calculada desde los partidos finalizados. En móvil va debajo del nombre del equipo; en desktop tiene su propia columna.
   - `/ligas` es el índice de torneos y es a donde apunta "Torneos" en el menú de desktop. Los torneos que la migración 8 dejó sin categorías (Apertura y Clausura, que no traían datos propios) aparecen ahí como finalizados y vacíos: es real, no un error.
   - `/estadisticas` y `/equipos` siguen existiendo (están en el menú móvil) y ahora enlazan a esta pantalla.
+- **Ficha de jugador** (`/jugadores/[id]`, con `?torneo=<slug>` para ver otro torneo): la figurita del diseño y el anticipo del álbum. Se llega desde el plantel de un equipo, desde los líderes y desde el MVP de la portada.
+  - **Pide sesión y lleva `robots: { index: false }`.** Los datos que muestra son los públicos de la liga, pero una página por niño, abierta y rastreable, es justo lo que la Ley 81 pide evitar. Sin sesión no se consulta nada: el nombre no llega ni en el HTML.
+  - La foto sale de `public_players.photo_path`, que es nulo sin consentimiento; sin ella se dibuja una silueta y se explica por qué. La política del bucket tampoco dejaría firmarla.
+  - Las **insignias** (`getBadges`) salen de hechos reales: goles, triplete en un partido, cinco fair play, MVP y campeón del torneo. Ninguna es decorativa; una insignia que no se ganó no celebra nada.
+  - **No hay botón de "Compartir tarjeta"** aunque el mockup lo tenga: exportar la ficha de un menor como imagen es una decisión del dueño, no una de diseño.
 - Respetar `env(safe-area-inset-bottom)` en el menú inferior (iPhone).
 - **Identidad (2026-11-15)**: navy y dorado, muestreados del logotipo. Tokens en `globals.css`, nunca hex sueltos en componentes:
   - `navy` `#010f2a` y `navy-soft` `#001743` — fondo de marca. La clase `bg-brand-gradient` reproduce el degradado que el logo trae debajo de sí: se usa en el header, el menú inferior, el hero y las piezas de marca.

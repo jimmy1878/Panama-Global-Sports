@@ -131,7 +131,11 @@ function Roster({ players, stats }: { players: RosterPlayer[]; stats: Record<str
       {players.map((p) => {
         const s = stats?.[p.playerId];
         return (
-          <li key={p.playerId} className="flex items-center gap-3 px-4 py-3">
+          <li key={p.playerId}>
+            <Link
+              href={`/jugadores/${p.playerId}`}
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
+            >
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-muted text-sm font-black tabular-nums">
               {p.jerseyNumber}
             </span>
@@ -152,6 +156,7 @@ function Roster({ players, stats }: { players: RosterPlayer[]; stats: Record<str
                 </span>
               </span>
             ) : null}
+            </Link>
           </li>
         );
       })}

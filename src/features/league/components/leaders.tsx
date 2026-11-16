@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Star, Users } from "lucide-react";
 import { TeamCrest } from "@/components/ui/team-crest";
 import { LEADER_STATS, type LeaderRow, type TeamRecognition } from "../data";
@@ -15,17 +16,22 @@ export function LeaderBoards({ leaders }: { leaders: Record<string, LeaderRow[]>
           <h3 className="mb-3 font-semibold">{label}</h3>
           <ol className="space-y-2.5">
             {leaders[stat].map((row, i) => (
-              <li key={`${row.playerName}-${row.team.id}-${i}`} className="flex items-center gap-3">
-                <span className="w-5 text-center text-sm font-bold text-muted tabular-nums">{row.position}</span>
-                <TeamCrest team={row.team} size="sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{row.playerName}</span>
-                  <span className="block truncate text-xs text-muted">{row.team.name}</span>
-                </span>
-                <span className="text-right">
-                  <span className="text-lg font-black tabular-nums">{row.value}</span>
-                  <span className="sr-only"> {unit}</span>
-                </span>
+              <li key={`${row.playerId}-${i}`}>
+                <Link
+                  href={`/jugadores/${row.playerId}`}
+                  className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-1 hover:bg-surface-muted"
+                >
+                  <span className="w-5 text-center text-sm font-bold text-muted tabular-nums">{row.position}</span>
+                  <TeamCrest team={row.team} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{row.playerName}</span>
+                    <span className="block truncate text-xs text-muted">{row.team.name}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="text-lg font-black tabular-nums">{row.value}</span>
+                    <span className="sr-only"> {unit}</span>
+                  </span>
+                </Link>
               </li>
             ))}
           </ol>

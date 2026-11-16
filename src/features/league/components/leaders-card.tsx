@@ -57,7 +57,7 @@ export function LeadersCard({
         {tiles.map(({ title, top }) => (
           <Link
             key={title}
-            href={`/equipos/${top.team.id}`}
+            href={`/jugadores/${top.playerId}`}
             className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 p-3 text-center transition-colors hover:bg-white/20"
           >
             <span className="text-[10px] font-black tracking-wide text-gold uppercase md:text-xs">{title}</span>

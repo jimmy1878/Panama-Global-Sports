@@ -39,9 +39,10 @@ export function WeekMvpCard({ mvp }: { mvp: WeekMvp }) {
             {mvp.team.name} · {mvp.categoryCode}
           </span>
           {line.length ? <span className="text-sm">{line.join(" · ")}</span> : null}
-          <Link href={`/partidos/${mvp.matchId}`} className="mt-1 text-sm font-bold text-gold">
-            Ver el partido
-          </Link>
+          <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-gold">
+            <Link href={`/jugadores/${mvp.playerId}`}>Ver su ficha</Link>
+            <Link href={`/partidos/${mvp.matchId}`}>Ver el partido</Link>
+          </span>
         </div>
       </div>
     </article>

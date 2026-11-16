@@ -596,7 +596,7 @@ export const LEADER_STATS = [
   { stat: "fair_play", label: "Fair play", unit: "reconocimientos" },
 ] as const;
 
-export type LeaderRow = { position: number; playerName: string; team: Team; value: number };
+export type LeaderRow = { position: number; playerId: string; playerName: string; team: Team; value: number };
 
 /** Líderes por estadística. Vacío en U6/U8: la vista los excluye desde la BD. */
 export async function getLeaders(tournamentId: string, categoryId: string, top = 5) {
@@ -620,6 +620,7 @@ export async function getLeaders(tournamentId: string, categoryId: string, top =
     if (!r.stat || !r.player_id || !team) continue;
     (result[r.stat] ??= []).push({
       position: r.position ?? 0,
+      playerId: r.player_id,
       playerName: names.get(r.player_id) ?? "Jugador",
       team,
       value: r.value ?? 0,
@@ -749,6 +750,7 @@ export async function getCategoriesByTournament(
 
 export type WeekMvp = {
   matchId: string;
+  playerId: string;
   playerName: string;
   team: Team;
   categoryCode: string;
@@ -808,6 +810,7 @@ export async function getWeekMvp(tournamentIds: string[]): Promise<WeekMvp | nul
 
   return {
     matchId: mvp.match.id,
+    playerId: mvp.player_id,
     playerName: names.get(mvp.player_id) ?? "Jugador",
     team,
     categoryCode: categories.find((c) => c.id === mvp.match.category_id)?.code ?? "",
