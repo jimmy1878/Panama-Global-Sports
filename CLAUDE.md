@@ -233,7 +233,9 @@ No es la versión desktop encogida. Cada vista se diseña **dos veces**:
 - Escribir estilos base para móvil y añadir `md:` / `lg:` para desktop. Nunca al revés.
 - Cuando la estructura cambia (tarjetas vs. tabla), renderizar **dos componentes** (`md:hidden` / `hidden md:block`) en lugar de forzar uno solo con muchos breakpoints.
 - La navegación vive en `src/components/layout/nav-items.ts`, en **dos listas**: `DESKTOP_NAV` (la del diseño: Torneos, En vivo, Calendario, Galería, Álbum, Fantasy, Historial) y `NAV_ITEMS` (los cinco destinos del menú inferior en móvil). Las entradas con `soon: true` se pintan apagadas porque su pantalla no existe; al construirla, quitar la marca.
-- **Portada** (`src/app/page.tsx`): si hay un partido en curso manda `<LiveHero>` (marcador grande, escudos, minuto y "también en juego"); si no, la presentación de los torneos. Encima, la barra `<TodayBar>` con los partidos del día **más cualquiera en vivo**, aunque su fecha sea otra.
+- **Portada** (`src/app/page.tsx`), en orden: barra `<TodayBar>` (partidos del día **más cualquiera en vivo**, aunque su fecha sea otra) · `<LiveHero>` si hay partido en curso, si no la presentación de los torneos · `<TournamentCards>` (una por liga, en su color, con jornada y categorías) · últimos resultados junto a `<WeekMvpCard>` (el MVP más reciente como figurita) · próximos partidos · `<UpcomingBanner>`, que **solo aparece si algún torneo está en estado `inscripciones`**.
+- `match_mvps` **no tiene `created_at`**: para saber cuál es el MVP más reciente hay que partir del último partido jugado (`matches.starts_at`), como hace `getWeekMvp()`.
+- Las categorías de un torneo se ordenan por el orden de `getCategories()` (liga y luego edad), no por el que devuelva la BD.
 - Solo puede haber **un `<LiveRefresher>` por página**: dos se suscriben al mismo canal de Realtime y el segundo lanza "cannot add postgres_changes callbacks after subscribe()".
 - El minuto en vivo (`<LiveMinute>`) se oculta pasados 150 minutos: un marcador que el delegado dejó abierto anunciaba "2974'".
 - `<BrandBackdrop>` dibuja el balón y las vetas de luz en SVG; acompaña a `bg-brand-gradient` en el header.
