@@ -36,15 +36,15 @@ export function LiveHero({
       id="en-vivo"
       className="bg-brand-gradient relative overflow-hidden rounded-3xl border border-gold/25 p-5 text-white md:p-8"
     >
-      {/* Arcos dorados, como los del diseño */}
+      {/* Arcos dorados en la esquina, como los del diseño: no cruzan el marcador */}
       <svg
         aria-hidden
-        className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-[36rem] opacity-50"
-        viewBox="0 0 600 260"
+        className="pointer-events-none absolute -bottom-6 -left-8 h-24 w-44 md:-bottom-10 md:-left-10 md:h-40 md:w-72"
+        viewBox="0 0 300 160"
         fill="none"
       >
-        <path d="M-40 250 C 120 120, 320 60, 640 30" stroke="#DFAF42" strokeOpacity="0.5" strokeWidth="10" />
-        <path d="M-40 280 C 140 150, 340 90, 640 60" stroke="#DFAF42" strokeOpacity="0.28" strokeWidth="5" />
+        <path d="M-20 170 C 40 90, 120 50, 300 20" stroke="#DFAF42" strokeOpacity="0.45" strokeWidth="8" />
+        <path d="M-20 196 C 54 116, 140 76, 300 50" stroke="#DFAF42" strokeOpacity="0.22" strokeWidth="4" />
       </svg>
 
       <div className="relative flex flex-col gap-5">

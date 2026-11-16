@@ -21,7 +21,7 @@ export function BrandBackdrop({ className = "" }: { className?: string }) {
 
       {/* Balón recortado por la derecha */}
       <svg
-        className="absolute -top-10 -right-6 h-[190%] w-auto opacity-60 md:-top-16 md:right-8"
+        className="absolute -top-16 -right-10 aspect-square h-[260%] opacity-90 md:-top-24 md:right-6"
         viewBox="0 0 200 200"
         fill="none"
       >
@@ -33,7 +33,7 @@ export function BrandBackdrop({ className = "" }: { className?: string }) {
           </radialGradient>
         </defs>
         <circle cx="100" cy="100" r="96" fill="url(#pgs-ball)" />
-        <g stroke="#2BB0FF" strokeOpacity="0.28" strokeWidth="2.5" strokeLinejoin="round" fill="none">
+        <g stroke="#2BB0FF" strokeOpacity="0.45" strokeWidth="2.5" strokeLinejoin="round" fill="none">
           {/* Pentágono central y sus costuras */}
           <path d="M100 58 L132 81 L120 119 L80 119 L68 81 Z" />
           <path d="M100 58 L100 20" />
@@ -47,7 +47,7 @@ export function BrandBackdrop({ className = "" }: { className?: string }) {
           <path d="M142 151 L108 178 L58 151" />
           <path d="M58 151 L22 110 L32 69" />
           <path d="M32 69 L60 34 L100 20" />
-          <circle cx="100" cy="100" r="96" strokeOpacity="0.35" />
+          <circle cx="100" cy="100" r="96" strokeOpacity="0.55" />
         </g>
       </svg>
     </div>
