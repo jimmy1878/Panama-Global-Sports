@@ -237,6 +237,7 @@ npm run test:db # pruebas de la base de datos (PGlite simula Supabase)
 npm run test:rules # reglas de las crónicas (privacidad y longitud)
 npm run test:media # el procesado de fotos borra EXIF/GPS
 npm run test:sponsors # qué patrocinador gana cada espacio
+npm run check:dns # la web apunta a Vercel y el correo sigue entero
 npm run icons   # regenera los iconos de la PWA
 npm run db:types  # tipos de TypeScript desde Supabase (requiere `npx supabase login` una vez en tu terminal)
 ```

@@ -13,7 +13,8 @@
     "db:push": "node scripts/db-push.mjs",
     "db:types": "node scripts/db-types.mjs",
     "icons": "node scripts/generate-icons.mjs",
-    "test:sponsors": "node scripts/test-sponsors.mjs"
+    "test:sponsors": "node scripts/test-sponsors.mjs",
+    "check:dns": "node scripts/check-dns.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

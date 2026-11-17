@@ -46,9 +46,14 @@ export async function loginAction(prev: LoginState, formData: FormData): Promise
       return {
         step: "email",
         email,
+        // Un 429 puede venir de dos límites distintos de Supabase: el de 60 s entre
+        // dos correos a la MISMA dirección, y `rate_limit_email_sent`, que es del
+        // proyecto entero por hora. Desde acá no se distinguen, así que el mensaje
+        // no promete "un minuto": con el segundo límite, esperar un minuto no
+        // arregla nada y la persona reintenta y vuelve a fallar.
         error:
           error.status === 429
-            ? "Pediste muchos códigos seguidos. Espera un minuto y vuelve a intentar."
+            ? "Hubo demasiados intentos. Espera unos minutos y vuelve a intentar."
             : "No pudimos enviar el código. Revisa el correo e inténtalo de nuevo.",
       };
     }

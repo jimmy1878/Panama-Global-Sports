@@ -81,28 +81,81 @@ tenemos permiso de enviar en nombre del dominio.
 
 ### 2. SMTP en Supabase
 
-**Project Settings → Authentication → SMTP Settings** → activar y llenar con lo que
-da el proveedor:
+En el panel de Supabase, **Authentication → SMTP** (en la barra de la izquierda, no
+en Project Settings). El enlace directo es
+`https://supabase.com/dashboard/project/_/auth/smtp` — ese `_` lo resuelve Supabase
+al proyecto que tengas abierto.
 
-- Host y puerto (465 con SSL, o 587 con STARTTLS)
-- Usuario y contraseña, tal como los muestra el panel del proveedor (en Resend están
-  en la sección **SMTP**, y la contraseña es una API key que se crea ahí mismo)
-- **Sender email**: `avisos@panamaglobalsports.com`
-- **Sender name**: `Panama Global Sports`
+Activar **Enable Custom SMTP** y llenar con lo que da el proveedor:
 
-Revisar también **Authentication → Rate Limits**: Supabase limita los correos por
-hora y el valor por defecto es bajo. Con seis equipos entrando el mismo sábado hay
-que subirlo.
+| Campo | Valor (Resend) |
+|---|---|
+| Host | `smtp.resend.com` |
+| Port | `465` (SSL) o `587` (STARTTLS) |
+| Username | `resend` — literal, esa palabra |
+| Password | una **API key**, que se crea en Resend → **API Keys** |
+| Sender email | `avisos@panamaglobalsports.com` |
+| Sender name | `Panama Global Sports` |
+
+#### Crear la API key (la contraseña)
+
+No es la contraseña de la cuenta de Resend. Es una clave aparte, que se crea así:
+
+1. En Resend, menú de la izquierda → **API Keys** (`https://resend.com/api-keys`).
+2. Botón **Create API Key**.
+3. **Name**: `supabase-auth`. El nombre es solo para vos; sirve para saber de dónde
+   viene cada envío cuando haya más de una clave.
+4. **Permission**: elegir **Sending access**, no *Full access*. Con *Sending access*
+   la clave solo puede mandar correos. Si algún día se filtra, no puede borrar el
+   dominio, ni leer los registros, ni crear otras claves.
+5. **Domain**: restringirla a `panamaglobalsports.com`. Así esa clave no puede mandar
+   correo en nombre de ningún otro dominio.
+6. **Add**. La clave aparece una sola vez, empieza con `re_`. **Copiarla en ese
+   momento**: Resend no la vuelve a mostrar nunca, ni a vos. Si se pierde, se borra y
+   se crea otra.
+7. Pegarla en el campo **Password** de Supabase.
+
+La clave no va en el repositorio ni en `.env.local`: la app no la usa, la usa
+Supabase. Su único lugar es el campo Password de esa pantalla.
+
+Y en la misma visita hay que tocar otras dos cosas, las dos comprobadas en el
+proyecto el 2026-11-16:
+
+- **Authentication → Rate Limits** (`…/auth/rate-limits`), campo
+  `rate_limit_email_sent`: es **cuántos correos de ingreso puede mandar el proyecto
+  entero en una hora**, sumando a todas las familias. No es por persona.
+
+  Hoy está en **2**. Con el correo por defecto de Supabase ese es el tope que ellos
+  imponen: entran dos papás y el tercero ve un error. Al activar SMTP propio, Supabase
+  lo sube solo a **30 por hora**, que sigue siendo poco para un sábado. Hay que
+  subirlo a mano. **100 por hora** es un buen punto de partida: cubre un sábado normal
+  y de todos modos el plan gratuito de Resend no deja pasar de 100 en todo el día, así
+  que poner más no compra nada.
+
+  No confundirlo con `smtp_max_frequency`, que está en **60 segundos** y es otra cosa:
+  el tiempo mínimo entre dos correos **a la misma dirección**. Ese está bien así
+  —evita que alguien pida diez códigos seguidos— y no hay que tocarlo.
+- **Authentication → Sign In / Providers → Email** (`…/auth/providers`), campo **Email
+  OTP Length**: viene en **8**. Hay que ponerlo en **6**, que es lo que dicen la pantalla de ingreso
+  (`src/app/ingresar/actions.ts`) y las dos plantillas de esta carpeta. Si se deja en
+  8, el papá lee "seis dígitos" y recibe ocho; entrar funciona igual —la validación
+  acepta de 6 a 8— pero parece un error y la gente abandona. La expiración
+  (`mailer_otp_exp`) ya está en 3600 s = una hora, que coincide con el texto de los
+  correos: esa no se toca.
+
+Esto no se puede hacer con el `SUPABASE_ACCESS_TOKEN` de `.env.local`: ese token es
+de solo lectura (se creó para `npm run db:types`) y la API responde 403. Se cambia a
+mano en el panel.
 
 ### 3. Las plantillas
 
-**Authentication → Emails**. Para cada una, pegar el HTML de esta carpeta y poner el
-asunto:
+**Authentication → Emails** (`…/auth/templates`). Para cada una, pegar el HTML de
+esta carpeta y poner el asunto:
 
-| Plantilla | Asunto |
-|---|---|
-| Magic Link | `Tu código para entrar: {{ .Token }}` |
-| Confirm signup | `Bienvenido · tu código es {{ .Token }}` |
+| Archivo de esta carpeta | Plantilla en el panel | Asunto |
+|---|---|---|
+| `magic-link.html` | **Magic Link** (el panel la llama *Magic Link or OTP*) | `Tu código para entrar: {{ .Token }}` |
+| `confirm-signup.html` | **Confirm signup** | `Bienvenido · tu código es {{ .Token }}` |
 
 El código en el asunto se ve en la notificación del celular sin abrir el correo, que
 es la mitad de la comodidad. Si el panel muestra el texto literal `{{ .Token }}` en
@@ -115,11 +168,16 @@ en los dos archivos.
 
 ### 4. Las URL (aquí se rompe si se olvida)
 
-**Authentication → URL Configuration**:
+**Authentication → URL Configuration** (`…/auth/url-configuration`):
 
-- **Site URL**: `https://panamaglobalsports.com`
-- **Redirect URLs**: agregar `https://panamaglobalsports.com/auth/callback`, y dejar
-  también `http://localhost:3000/auth/callback` para desarrollo.
+- **Site URL**: `https://www.panamaglobalsports.com` — **con `www`**, porque ese es
+  el dominio de producción en Vercel y el raíz redirige hacia él (308). Si acá se pone
+  el raíz, Supabase arma el enlace del correo apuntando a una dirección que redirige,
+  y el flujo PKCE se rompe en el salto.
+- **Redirect URLs**: agregar las dos, `https://www.panamaglobalsports.com/auth/callback`
+  y `https://panamaglobalsports.com/auth/callback`, más
+  `http://localhost:3000/auth/callback` para desarrollo. Poner las dos no cuesta nada
+  y evita quedar colgado si algún día se invierte cuál es el de producción.
 
 Si falta, el enlace del correo vuelve a `/auth/callback` y Supabase lo rechaza. El
 código de 6 dígitos sigue funcionando, así que el síntoma es confuso: a unos les
@@ -128,8 +186,68 @@ entra y a otros no.
 ### 5. El dominio en Vercel
 
 **Vercel → el proyecto → Settings → Domains** → agregar `panamaglobalsports.com`.
-Vercel devuelve un registro A (o un CNAME para `www`) que también va en GoDaddy. No
-hay que tocar código: `getOrigin()` lee el host de la petición.
+Vercel devuelve un registro A para la raíz (y un CNAME para `www`) que van en GoDaddy.
+No hay que tocar código: `getOrigin()` lee el host de la petición.
+
+Los valores salen de **View DNS configuration** en cada fila de esa pantalla de
+Vercel; el CNAME es único por proyecto, no se puede adivinar. Los de este proyecto,
+leídos el 2026-11-16:
+
+| Tipo | Nombre | Valor |
+|---|---|---|
+| A | `@` | `216.198.79.1` |
+| CNAME | `www` | `f29411d9a408ca07.vercel-dns-017.com` |
+
+Vercel muestra el CNAME con un punto al final. En GoDaddy se escribe **sin** ese
+punto final.
+
+Por defecto Vercel deja `www` como dominio de producción y el raíz redirigiendo hacia
+él con un 308. Se puede invertir, pero no hace falta: las dos direcciones funcionan y
+la única consecuencia es que el Site URL de Supabase (sección 4) lleva `www`.
+
+**El registro de la raíz se REEMPLAZA, no se agrega.** Hoy la raíz tiene dos
+registros A apuntando a la página de parqueo de GoDaddy (`3.33.130.190` y
+`15.197.148.33`), y `www` es un CNAME que apunta a la raíz. Si se deja lo viejo y se
+agrega el de Vercel, el dominio queda con tres direcciones y el navegador elige una
+al azar: a unos les abre la app y a otros la página de parqueo de GoDaddy. Es el peor
+tipo de falla, porque en tu celular funciona y jurás que está todo bien.
+
+Entonces: **borrar los dos registros A de la raíz** (o editar uno y borrar el otro) y
+dejar solo el de Vercel. Para `www`, apuntar el CNAME a donde diga Vercel.
+
+**Si GoDaddy no deja borrarlos**, y muestra "Hemos bloqueado este registro para
+proteger los servicios conectados a tu dominio": es el **reenvío de dominio**, que se
+apropia del registro A. La propia ayuda de GoDaddy lo dice —"Eliminar el reenvío de
+dominio también desbloqueará tu registro DNS A para que puedas editar ese registro"—.
+Se quita así:
+
+1. Entrar a la cartera de dominios y abrir el dominio (**Configuración de dominio**).
+2. **DNS** → **Reenvío**.
+3. **Eliminar** al lado del dominio, y confirmar.
+
+Si el dominio tiene **Domain Protection**, GoDaddy pide verificación de identidad:
+un código por SMS, por la app de autenticación, o por correo. Con el reenvío fuera,
+los registros A quedan editables.
+
+**Lo que NO se toca, pase lo que pase**: `send` y `rsend` (los dos CNAME que creó
+Resend), `resend._domainkey` (TXT) y `_dmarc` (TXT). Esos son el correo. Borrarlos
+por limpiar deja la app sin ingreso. El CNAME `_domainconnect` es de GoDaddy y
+tampoco estorba: es por donde Resend escribió los registros solo.
+
+### 5b. Comprobar el DNS sin entrar a ningún panel
+
+```
+npm run check:dns
+```
+
+Mira de una sola vez las dos cosas que viven en este dominio —la web en Vercel y el
+correo en Resend— y dice cuál está mal. Pregunta a un resolutor público, no a la
+caché de Windows, así que muestra lo que ve el resto del mundo. Correrlo después de
+cada cambio en GoDaddy: es más rápido y más confiable que mirar el panel, que tarda
+en refrescar.
+
+Si `check-dns.mjs` dice que falta un registro de correo, **no se hizo nada bien**:
+alguien borró de más mientras acomodaba lo de Vercel.
 
 ### 6. Probar
 
