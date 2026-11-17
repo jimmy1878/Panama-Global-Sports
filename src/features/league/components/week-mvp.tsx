@@ -18,13 +18,16 @@ export function WeekMvpCard({ mvp }: { mvp: WeekMvp }) {
   ].filter(Boolean);
 
   return (
-    <article className="bg-brand-gradient flex flex-col gap-4 self-start rounded-3xl border border-gold/25 p-5 text-white md:p-6">
+    // Sin `self-start`: en desktop la tarjeta estira hasta la altura de la
+    // columna de resultados, que es lo que las alinea. El contenido se centra
+    // en el espacio que sobre, para que no quede pegado arriba.
+    <article className="bg-brand-gradient flex flex-col gap-4 rounded-3xl border border-gold/25 p-5 text-white md:p-6">
       <span className="flex items-center gap-2 text-xs font-black tracking-widest text-gold uppercase">
         <Medal className="size-4" aria-hidden />
         Jugador del partido
       </span>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-1 items-center gap-4">
         {/* Figurita: el escudo del equipo hace de retrato hasta que haya foto */}
         <span
           aria-hidden

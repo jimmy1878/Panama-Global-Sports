@@ -26,12 +26,18 @@ const comprobaciones = [
     titulo: "Web · raíz apunta a Vercel",
     nombre: DOMINIO,
     tipo: "A",
-    revisar: (v) =>
-      v.includes(VERCEL_A)
-        ? { ok: true, nota: VERCEL_A }
-        : v.some((x) => PARQUEO.test(x))
-          ? { ok: false, nota: `sigue en el parqueo de GoDaddy (${v.join(", ")})` }
-          : { ok: false, nota: `esperaba ${VERCEL_A}, encontré ${v.join(", ") || "nada"}` },
+    revisar: (v) => {
+      const sobran = v.filter((x) => x !== VERCEL_A);
+      // El caso peligroso: el de Vercel está, pero los viejos siguen. El dominio
+      // queda con varias direcciones y el navegador elige una al azar, así que a
+      // unos les abre la app y a otros la página de parqueo. Falla intermitente.
+      if (v.includes(VERCEL_A) && sobran.length)
+        return { ok: false, nota: `SOBRAN ${sobran.length}: borrar ${sobran.join(", ")} y dejar solo ${VERCEL_A}` };
+      if (v.includes(VERCEL_A)) return { ok: true, nota: VERCEL_A };
+      if (v.some((x) => PARQUEO.test(x)))
+        return { ok: false, nota: `sigue en el parqueo de GoDaddy (${v.join(", ")})` };
+      return { ok: false, nota: `esperaba ${VERCEL_A}, encontré ${v.join(", ") || "nada"}` };
+    },
   },
   {
     titulo: "Web · www apunta a Vercel",

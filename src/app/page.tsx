@@ -7,7 +7,7 @@ import { LiveHero } from "@/features/league/components/live-hero";
 import { TournamentCards } from "@/features/league/components/tournament-cards";
 import { UpcomingBanner } from "@/features/league/components/upcoming-banner";
 import { WeekMvpCard } from "@/features/league/components/week-mvp";
-import { MatchCard } from "@/features/league/components/match-list";
+import { MatchCard, ResultCard } from "@/features/league/components/match-list";
 import {
   getCategories,
   getCategoriesByTournament,
@@ -113,10 +113,17 @@ async function HomeMatches() {
           Los partidos en vivo ya los encabeza <LiveHero>, no se repiten aquí. */}
       <LiveRefresher delayMs={5000} />
 
-      {/* Móvil: una columna. Desktop: resultados y el destacado lado a lado. */}
-      <div className="grid gap-8 md:grid-cols-2">
+      {/* Móvil: una columna. Desktop: resultados y el destacado lado a lado.
+          Son cuatro resultados a propósito: es lo que hace que la columna
+          termine a la misma altura que la tarjeta del MVP, como en el diseño.
+          Sin MVP no hay con qué emparejar, así que los resultados van anchos. */}
+      <div className={`grid gap-8 ${mvp ? "md:grid-cols-2" : ""}`}>
         <Section title="Últimos resultados" href="/calendario">
-          {recent.length ? <CardGrid matches={recent} catById={catById} /> : <EmptyState>Aún no hay resultados.</EmptyState>}
+          {recent.length ? (
+            <ResultGrid matches={recent.slice(0, 4)} catById={catById} />
+          ) : (
+            <EmptyState>Aún no hay resultados.</EmptyState>
+          )}
         </Section>
         {mvp ? <WeekMvpCard mvp={mvp} /> : null}
       </div>
@@ -153,6 +160,19 @@ async function UpcomingTournament() {
   const abiertos = (await getTournaments()).filter((t) => t.status === "inscripciones");
   if (!abiertos.length) return null;
   return <UpcomingBanner tournaments={abiertos} />;
+}
+
+/** Los resultados de la portada: una línea por partido, como en el diseño. */
+function ResultGrid({ matches, catById }: { matches: Match[]; catById: Map<string, Category> }) {
+  return (
+    <ul className="grid gap-3">
+      {matches.map((m) => (
+        <li key={m.id}>
+          <ResultCard match={m} category={catById.get(m.categoryId)} />
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function CardGrid({ matches, catById }: { matches: Match[]; catById: Map<string, Category> }) {

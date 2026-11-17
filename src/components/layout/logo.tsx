@@ -4,9 +4,14 @@ import Link from "next/link";
 /**
  * Logotipo de Panama Global Sports.
  *
- * El archivo trae el fondo navy difuminado con el que fue diseñado, así que
- * solo se ve bien sobre el degradado de marca (`bg-brand-gradient`), nunca
- * sobre blanco. En móvil se usa solo el globo: el bloque completo no se leería.
+ * Desde el 2026-11-16 el archivo tiene **fondo transparente**, así que se ve
+ * bien sobre navy y también sobre claro —el dorado lleva su propio contorno
+ * oscuro—. El anterior traía el navy difuminado encima y solo servía sobre
+ * `bg-brand-gradient`; si ves esa restricción escrita en algún lado, está vieja.
+ *
+ * Los dos archivos salen del maestro `assets/brand/logo-fuente.webp`, que no se
+ * publica: `logo.webp` es el bloque completo y `isotipo.webp` solo el globo. En
+ * móvil va el globo, porque el bloque entero no se leería a ese tamaño.
  */
 export function Logo() {
   return (
@@ -15,7 +20,7 @@ export function Logo() {
       <Image
         src="/brand/isotipo.webp"
         alt=""
-        width={146}
+        width={178}
         height={160}
         priority
         className="h-9 w-auto md:hidden"
@@ -24,7 +29,7 @@ export function Logo() {
       <Image
         src="/brand/logo.webp"
         alt=""
-        width={541}
+        width={980}
         height={160}
         priority
         className="hidden h-11 w-auto md:block"

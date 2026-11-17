@@ -75,6 +75,50 @@ export function MatchCard({ match, category }: { match: Match; category?: Catego
   );
 }
 
+/**
+ * Resultado en una sola línea, para la columna de la portada.
+ *
+ * Es más apretada que `<MatchCard>` a propósito: ahí lo que se busca no es el
+ * detalle de un partido sino barrer cuatro de un vistazo, y además la columna
+ * tiene que terminar a la altura de la tarjeta del MVP. Por eso los dos equipos
+ * van en un renglón y no se pintan escudos, fecha ni cancha.
+ */
+export function ResultCard({ match, category }: { match: Match; category?: Category }) {
+  const hasScore = match.homeScore !== null && match.awayScore !== null;
+
+  return (
+    <Link
+      href={`/partidos/${match.id}`}
+      className="block rounded-2xl border border-border bg-surface px-4 py-3 transition-colors hover:border-brand-blue/40 active:bg-surface-muted"
+    >
+      <div className="flex items-center justify-between gap-3">
+        {category ? (
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white"
+            // El color de la liga: celeste para Boys, magenta para Girls.
+            style={{ backgroundColor: category.leagueGender === "girls" ? "var(--girls)" : "var(--boys)" }}
+          >
+            {category.leagueGender === "girls" ? "Girls" : "Boys"} · {category.code}
+          </span>
+        ) : (
+          <span />
+        )}
+        <StatusBadge match={match} />
+      </div>
+      <div className="mt-1.5 flex items-baseline justify-between gap-3">
+        <span className="truncate font-medium">
+          {match.home.name} – {match.away.name}
+        </span>
+        {hasScore ? (
+          <span className="shrink-0 font-display text-2xl tabular-nums">
+            {match.homeScore}–{match.awayScore}
+          </span>
+        ) : null}
+      </div>
+    </Link>
+  );
+}
+
 /** Desktop: tabla completa de partidos. */
 export function MatchTable({ matches, categories }: { matches: Match[]; categories?: Category[] }) {
   const catById = new Map(categories?.map((c) => [c.id, c]));
