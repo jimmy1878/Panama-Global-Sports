@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CalendarDays, ChartColumn } from "lucide-react";
 import { EmptyState, Section, Skeleton } from "@/components/ui/section";
 import { LiveRefresher } from "@/components/live/live-refresher";
+import { LeagueValues } from "@/features/league/components/league-values";
 import { LiveHero } from "@/features/league/components/live-hero";
 import { TournamentCards } from "@/features/league/components/tournament-cards";
 import { UpcomingBanner } from "@/features/league/components/upcoming-banner";
@@ -34,6 +35,10 @@ export default function Home() {
       <Suspense fallback={<HomeSkeleton />}>
         <HomeMatches />
       </Suspense>
+      {/* Antes del banner de inscripciones: responde lo que una familia se
+          pregunta justo antes de decidir si viene. No lee nada, así que no
+          necesita <Suspense>. */}
+      <LeagueValues />
       <Suspense fallback={<Skeleton className="h-44" />}>
         <UpcomingTournament />
       </Suspense>
