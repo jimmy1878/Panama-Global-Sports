@@ -212,7 +212,8 @@ Es la **fuente principal de ingresos**. Un patrocinador se asigna a un espacio d
 - `display_name` es una columna **generada** (`first_name || ' ' || last_initial || '.'`): el certificado no puede mostrar el apellido completo ni queriendo.
 - En categorías con `recognition_mode = 'team_stars'` la vista devuelve `null` en todas las cifras, la lista de estadísticas queda vacía y la plantilla cambia sola a participación y valores. No es la interfaz la que oculta los números: nunca llegan.
 - Se dibuja con Satori (`next/og`, mismas fuentes Geist que la tarjeta de resultado) a 2200×1700 px y `pdf-lib` mete esa imagen en una página **carta horizontal** (792×612 pt = 200 ppp). Es imagen y no texto seleccionable a propósito: lo que importa es que se imprima igual en cualquier parte.
-- El navy va solo en las bandas de arriba y abajo; el cuerpo queda claro. Un fondo navy completo se come el tóner de una impresora de casa, y de paso evita el problema de que el logotipo trae su propio fondo navy difuminado.
+- El navy va solo en las bandas de arriba y abajo; el cuerpo queda claro. Un fondo navy completo se come el tóner de una impresora de casa.
+- La banda de arriba lleva el **logotipo**, no el nombre en texto. La ruta lo lee de `assets/brand/logo-fuente.webp` una sola vez al cargar el módulo, lo recorta y lo pasa a **PNG, porque Satori no lee WebP**, al doble del tamaño al que se dibuja para que no se vea blando impreso. Si esa carga falla, la plantilla cae al nombre en texto: nadie se queda sin su diploma por un logo. Por eso `outputFileTracingIncludes` también incluye `assets/brand/*.webp` para esta ruta.
 - El pie lleva el espacio de patrocinio `certificado`. Como no hay navegador que avise, la **impresión** la registra el servidor con `after(() => recordSponsorEvent(...))` al generar el PDF.
 - `outputFileTracingIncludes` incluye `assets/fonts/*.ttf` también para `/familia/certificado`: las fuentes se leen del disco en tiempo de ejecución.
 

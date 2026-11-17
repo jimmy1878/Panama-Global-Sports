@@ -53,6 +53,12 @@ export type CertificateData = {
   stats: CertificateStat[];
   /** Logo del patrocinador del espacio `certificado`, si hay alguno hoy. */
   sponsor: { name: string; text: string | null; logo: string | null } | null;
+  /**
+   * El logotipo de la liga, ya en PNG (Satori no lee WebP). Lo inyecta la ruta,
+   * que lo lee del disco una vez. Si falla, la banda cae al nombre en texto y
+   * el certificado sale igual: nadie se queda sin su diploma por un logo.
+   */
+  brandLogo?: string | null;
 };
 
 export function Certificate(data: CertificateData) {
@@ -115,8 +121,13 @@ export function Certificate(data: CertificateData) {
             letterSpacing: 14,
           }}
         >
-          PANAMA GLOBAL SPORTS
-          <div style={{ display: "flex", marginTop: 14, color: "#FFFFFF", fontSize: 30, fontWeight: 700, letterSpacing: 6 }}>
+          {data.brandLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- lo dibuja Satori, no el navegador
+            <img src={data.brandLogo} height={118} alt="" />
+          ) : (
+            "PANAMA GLOBAL SPORTS"
+          )}
+          <div style={{ display: "flex", marginTop: 20, color: "#FFFFFF", fontSize: 30, fontWeight: 700, letterSpacing: 6 }}>
             {data.heading.toUpperCase()}
           </div>
         </div>

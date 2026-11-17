@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { after, type NextRequest } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
 import { Certificate, CERTIFICATE_PAGE_PT, CERTIFICATE_SIZE } from "@/features/certificates/certificate";
 import { getCertificateData } from "@/features/certificates/data";
 import { isUuid } from "@/features/league/data";
@@ -38,6 +39,30 @@ const FONTS = [
   { name: "Geist", data: black, weight: 900, style: "normal" },
 ] as const;
 
+/**
+ * El logotipo para la banda de arriba, también una sola vez al cargar el módulo.
+ *
+ * Sale del maestro `assets/brand/logo-fuente.webp` —cuyo contenido vive en
+ * x 27–1986, y 160–479; el resto es transparente y dejaría la banda
+ * descentrada— y se convierte a PNG porque **Satori no lee WebP**. Va al doble
+ * del tamaño al que se dibuja, para que no se vea blando al imprimir.
+ *
+ * Si algo falla devuelve null y la plantilla cae al nombre en texto: una
+ * familia no se queda sin su certificado por culpa de un logo.
+ */
+const BRAND_LOGO = await (async () => {
+  try {
+    const png = await sharp(join(process.cwd(), "assets", "brand", "logo-fuente.webp"))
+      .extract({ left: 27, top: 160, width: 1960, height: 320 })
+      .resize({ height: 236 })
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+})();
+
 export async function GET(request: NextRequest) {
   const playerId = request.nextUrl.searchParams.get("jugador");
   const tournamentId = request.nextUrl.searchParams.get("torneo");
@@ -48,7 +73,7 @@ export async function GET(request: NextRequest) {
   const certificate = await getCertificateData(playerId, tournamentId);
   if (!certificate) return new Response("Certificado no encontrado", { status: 404 });
 
-  const png = await new ImageResponse(Certificate(certificate.data), {
+  const png = await new ImageResponse(Certificate({ ...certificate.data, brandLogo: BRAND_LOGO }), {
     ...CERTIFICATE_SIZE,
     fonts: [...FONTS],
   }).arrayBuffer();

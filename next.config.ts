@@ -7,7 +7,8 @@ const nextConfig: NextConfig = {
   // en tiempo de ejecución: hay que incluirlas en el paquete que se despliega.
   outputFileTracingIncludes: {
     "/partidos/\\[id\\]/tarjeta": ["assets/fonts/*.ttf"],
-    "/familia/certificado": ["assets/fonts/*.ttf"],
+    // El certificado además dibuja el logotipo, que lee del disco al arrancar.
+    "/familia/certificado": ["assets/fonts/*.ttf", "assets/brand/*.webp"],
   },
   experimental: {
     // Detecta cuando se pierde la conexión y reintenta navegaciones y acciones al volver (PWA).
