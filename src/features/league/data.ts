@@ -751,16 +751,70 @@ export async function getCategoriesByTournament(
   return result;
 }
 
-export type WeekMvp = {
-  matchId: string;
+/**
+ * Cuántos jugadores del partido hubo en esa jornada, sin contar los del partido
+ * que ya se está mostrando. Boys y Girls avanzan en paralelo, así que la jornada
+ * se busca por número en todos los torneos en curso, no en uno solo.
+ */
+async function countMatchdayMvps(tournamentIds: string[], number: number, exceptMatchId: string) {
+  const supabase = createPublicClient();
+
+  const { data: jornadas } = await supabase
+    .from("matchdays")
+    .select("id")
+    .in("tournament_id", tournamentIds)
+    .eq("number", number);
+  if (!jornadas?.length) return 0;
+
+  const { data: partidos } = await supabase
+    .from("matches")
+    .select("id")
+    .in("matchday_id", jornadas.map((j) => j.id))
+    .eq("status", "finished")
+    .neq("id", exceptMatchId);
+  if (!partidos?.length) return 0;
+
+  const { count } = await supabase
+    .from("match_mvps")
+    .select("match_id", { count: "exact", head: true })
+    .in("match_id", partidos.map((p) => p.id));
+  return count ?? 0;
+}
+
+export type MatchMvp = {
   playerId: string;
   playerName: string;
   team: Team;
-  categoryCode: string;
   stats: { goals: number; assists: number; fairPlay: number };
 };
 
-/** El jugador del partido más reciente, para destacarlo en la portada. */
+export type WeekMvp = {
+  /** El partido completo: equipos, marcador, fecha y jornada. */
+  match: Match;
+  categoryCode: string;
+  /** Uno por equipo, local primero. Normalmente dos. */
+  players: MatchMvp[];
+  /** Cuántos otros jugadores del partido hubo en la misma jornada. */
+  othersInMatchday: number;
+};
+
+/**
+ * Los jugadores del partido del último partido jugado, para la portada.
+ *
+ * Tres decisiones que conviene no deshacer sin pensarlas:
+ *
+ * 1. **Se devuelven los dos**, no uno. El MVP es uno por equipo y por partido
+ *    (`match_mvps` tiene una fila por equipo), así que quedarse con uno obliga a
+ *    elegir, y elegir entre dos niños premiados pide un criterio que no existe.
+ *    Antes se tomaba "el primero que devolviera Postgres", sin `order`: dos
+ *    visitas a la portada podían mostrar jugadores distintos.
+ * 2. **Se devuelve el partido entero.** Sin él la tarjeta nombra a un niño sin
+ *    decir contra quién jugó ni cómo terminó, que es lo que le da sentido.
+ * 3. **Se cuentan los de la jornada.** Un sábado deja muchos jugadores del
+ *    partido y la portada solo puede mostrar uno; al menos dice cuántos más
+ *    hubo y lleva a verlos. La jornada va por número y no por torneo porque
+ *    Boys y Girls se juegan en paralelo y avanzan juntas.
+ */
 export async function getWeekMvp(tournamentIds: string[]): Promise<WeekMvp | null> {
   "use cache";
   cacheLife("minutes");
@@ -769,55 +823,68 @@ export async function getWeekMvp(tournamentIds: string[]): Promise<WeekMvp | nul
   if (!tournamentIds.length) return null;
   const supabase = createPublicClient();
 
-  // Se parte del último partido jugado: `match_mvps` no guarda fecha propia.
-  const { data: ultimos } = await supabase
+  // Se parte de los últimos partidos jugados: `match_mvps` no guarda fecha propia.
+  const { data: filas, error } = await supabase
     .from("matches")
-    .select("id, category_id, tournament_id")
+    .select(MATCH_SELECT)
     .in("tournament_id", tournamentIds)
     .eq("status", "finished")
     .order("starts_at", { ascending: false })
-    .limit(10);
-  if (!ultimos?.length) return null;
+    .order("id", { ascending: false })
+    .limit(40);
+  if (error) fail("el jugador del partido", error);
+  if (!filas?.length) return null;
 
+  const ultimos = (filas as MatchRow[]).map(toMatch);
   const { data: mvps } = await supabase
     .from("match_mvps")
     .select("player_id, team_id, match_id")
     .in("match_id", ultimos.map((m) => m.id));
   if (!mvps?.length) return null;
 
-  // El primero que aparezca siguiendo el orden de los partidos (el más reciente)
-  const partido = ultimos.find((m) => mvps.some((v) => v.match_id === m.id));
-  const elegido = partido && mvps.find((v) => v.match_id === partido.id);
-  if (!partido || !elegido) return null;
+  const conMvp = new Set(mvps.map((v) => v.match_id));
+  const match = ultimos.find((m) => conMvp.has(m.id));
+  if (!match) return null;
 
-  const mvp = {
-    player_id: elegido.player_id,
-    team_id: elegido.team_id,
-    match: { id: partido.id, category_id: partido.category_id, tournament_id: partido.tournament_id },
-  };
+  // Los otros de la misma jornada. Se cuentan con su propia consulta y no sobre
+  // los 40 partidos de arriba: una jornada entera de las dos ligas pasa de 30
+  // partidos, así que contarlos ahí dejaría el número corto sin avisar.
+  const othersInMatchday = match.matchday === null ? 0 : await countMatchdayMvps(tournamentIds, match.matchday, match.id);
 
-  const [names, teams, categories, { data: events }] = await Promise.all([
-    getPlayerNames([mvp.player_id]),
-    getTeams(mvp.match.tournament_id),
+  // Local primero y visitante después: un orden fijo, no el que traiga la base.
+  const delPartido = mvps.filter((v) => v.match_id === match.id);
+  const ordenados = [match.home.id, match.away.id]
+    .map((teamId) => delPartido.find((v) => v.team_id === teamId))
+    .filter((v) => v !== undefined);
+  if (!ordenados.length) return null;
+
+  const [names, categories, { data: events }] = await Promise.all([
+    getPlayerNames(ordenados.map((v) => v.player_id)),
     getCategories(),
     supabase
       .from("scoring_events")
-      .select("code")
-      .eq("player_id", mvp.player_id)
-      .eq("match_id", mvp.match.id),
+      .select("player_id, code")
+      .eq("match_id", match.id)
+      .in("player_id", ordenados.map((v) => v.player_id)),
   ]);
 
-  const team = teams.find((t) => t.id === mvp.team_id);
-  if (!team) return null;
-  const count = (code: string) => (events ?? []).filter((e) => e.code === code).length;
+  const count = (playerId: string, code: string) =>
+    (events ?? []).filter((e) => e.player_id === playerId && e.code === code).length;
 
   return {
-    matchId: mvp.match.id,
-    playerId: mvp.player_id,
-    playerName: names.get(mvp.player_id) ?? "Jugador",
-    team,
-    categoryCode: categories.find((c) => c.id === mvp.match.category_id)?.code ?? "",
-    stats: { goals: count("goal"), assists: count("assist"), fairPlay: count("fair_play") },
+    match,
+    categoryCode: categories.find((c) => c.id === match.categoryId)?.code ?? "",
+    players: ordenados.map((v) => ({
+      playerId: v.player_id,
+      playerName: names.get(v.player_id) ?? "Jugador",
+      team: v.team_id === match.home.id ? match.home : match.away,
+      stats: {
+        goals: count(v.player_id, "goal"),
+        assists: count(v.player_id, "assist"),
+        fairPlay: count(v.player_id, "fair_play"),
+      },
+    })),
+    othersInMatchday,
   };
 }
 
